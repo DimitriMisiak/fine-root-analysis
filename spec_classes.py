@@ -7,7 +7,6 @@
 """
 import numpy as np
 
-#from .core_classes import Analysis, Artifact
 from red_magic import Root_reader, Artifact
 from model_spectrum import fid_mixture, double_norm
 
@@ -22,7 +21,10 @@ class Analysis_red(Root_reader):
             chan_veto=(2,4),
             chan_collect=(3,5),
             chan_valid=(0,2,3,4,5), # 1 NTD and 4 electrodes
-            chan_signal=(0, 3, 5)
+            chan_signal=(0, 3, 5),
+            n_sigma=2,
+            override_mu=None,
+            override_sigma=None,
     ):
         
         Root_reader.__init__(
@@ -36,9 +38,9 @@ class Analysis_red(Root_reader):
         self.temporal_data_extraction()
         self.quality_cut_events()
         self.baseline_resolution()
-        self.fiducial_cut_events()
+        self.fiducial_cut_events(n_sigma=n_sigma)
         self.init_spectrum_model()
-        self.sensitivity_estimation()
+        self.sensitivity_estimation(override_mu, override_sigma)
         self.conversion_adu_to_ev()
         self.virtual_collect_channel()
 
@@ -185,7 +187,7 @@ class Analysis_red(Root_reader):
             sigma = np.std(energy[:, ind])
             setattr(noise.sigma0, chan, sigma)
     
-    def fiducial_cut_events(self):
+    def fiducial_cut_events(self, n_sigma):
         """ Computes the fiducial cut """
         
         # no fiducial cut in heat only analysis
@@ -206,7 +208,7 @@ class Analysis_red(Root_reader):
             sigma0 = getattr(noise.sigma0, lab)
             
             # consider cut at 2-sigma
-            cond = np.abs(energy[:, ind]) < 2*sigma0
+            cond = np.abs(energy[:, ind]) < n_sigma*sigma0
         
             cond_veto.append(cond)
         
@@ -232,13 +234,18 @@ class Analysis_red(Root_reader):
         else:
             raise Exception('\"{}\" model is not recognized.'.format(model))
         
-    def sensitivity_estimation(self):
+    def sensitivity_estimation(self, override_mu=None, override_sigma=None):
         """ Estimate the sesitivity with calibration peak and
         given spectrum model.
         """
         run_tree = self.all.run_tree
         trig = self.all.trig
         
+        if override_mu:
+            assert len(override_mu) == len(run_tree.chan_signal)        
+        if override_sigma:
+            assert len(override_sigma) == len(run_tree.chan_signal)        
+            
         self.calibration_peak = Artifact('calibration_peak')
         self.calibration_peak.energy = 10.37 * 1e3 # Ge 10.37keV
         self.calibration_peak.sigma = Artifact('sigma')
@@ -261,7 +268,7 @@ class Analysis_red(Root_reader):
         cut_peak = getattr(trig.cut, self.calibration_peak.cut_type)
         energy = trig.filt_decor.Energy_OF[cut_peak]
         
-        for ind in run_tree.chan_signal:
+        for j,ind in enumerate(run_tree.chan_signal):
             
             lab = run_tree.chan_label[ind]
             data = energy[:, ind]
@@ -282,11 +289,21 @@ class Analysis_red(Root_reader):
             else:
                 mu, sig = gauss2
             
-            setattr(self.calibration_peak, lab, mu)
-            setattr(self.calibration_peak.sigma, lab, sig)
+            if override_mu:
+                setattr(self.calibration_peak, lab, override_mu[j])
+            else:
+                setattr(self.calibration_peak, lab, mu)
+                
+            if override_sigma:
+                setattr(self.calibration_peak.sigma, lab, override_sigma[j])
+                print('sigma' + lab)
+            else:
+                setattr(self.calibration_peak.sigma, lab, sig)
+                print('sigma' + lab)
             
             sens = getattr(self.calibration_peak, lab) / self.calibration_peak.energy
             setattr(self.sensitivity, lab, sens)
+        
     
     def conversion_adu_to_ev(self):
         """ Reconstructed energy in evfrom sensitivity. """
@@ -305,6 +322,8 @@ class Analysis_red(Root_reader):
         noise_energy_adu = noise.filt_decor.Energy_OF_t0
         sigma0 = noise.sigma0
         sigma = self.calibration_peak.sigma
+        
+        print(sigma.__dict__)
         
         # creating the sign correction used when "adding ion channels"
         proto_sign = np.concatenate((-run_tree.Sign_Chal, run_tree.Polar_Ion), axis=1)
@@ -364,8 +383,9 @@ class Analysis_red(Root_reader):
             noise_energy = getattr(noise.energy_ev, lab)
             noise_collect.append(noise_energy)
         
-        trig.energy_ev.collect = np.sum(energy_collect, axis=0)
-        noise.energy_ev.collect = np.sum(noise_collect, axis=0)
+        # dividing by two to compensate for the summing of two ion channels
+        trig.energy_ev.collect = np.sum(energy_collect, axis=0)/2
+        noise.energy_ev.collect = np.sum(noise_collect, axis=0)/2
         
         noise.sigma0_ev.collect = np.std(noise.energy_ev.collect)
         

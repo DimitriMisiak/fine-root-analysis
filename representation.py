@@ -457,7 +457,7 @@ def histogram_ev(ana):
     return fig_list
 
 
-def ion_vs_ion(ana):
+def ion_vs_ion(ana, n_sigma):
     
     # general
     run_info = ' '.join([ana.run, ana.detector])
@@ -514,16 +514,18 @@ def ion_vs_ion(ana):
     
         if xind in run_tree.chan_veto:
             lab = run_tree.chan_label[xind]
-            xamp = 2*getattr(noise.sigma0, lab)
+            xamp = n_sigma*getattr(noise.sigma0, lab)
             ymin, ymax = energy_y.min(), energy_y.max()
             ax.fill_betweenx([ymin, ymax], -xamp, +xamp, color='lavender')
     
         if yind in run_tree.chan_veto:
             lab = run_tree.chan_label[yind]
-            yamp = 2*getattr(noise.sigma0, lab)
+            yamp = n_sigma*getattr(noise.sigma0, lab)
             xmin, xmax = energy_x.min(), energy_x.max()
             ax.fill_between([xmin, xmax], -yamp, +yamp, color='lavender',
-                             label='Fiducial selection (2$\sigma$)')
+                             label='Fiducial selection ({}$\sigma$)'.format(n_sigma)
+                            )
+
             
         custom_autoscale(ax, energy_x[cut_qual], energy_y[cut_qual])
         

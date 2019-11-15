@@ -69,7 +69,7 @@ class fid_mixture(st.rv_continuous):
         return cond
     
     def _fitstart(self, data):
-        mu01, mu02 = np.quantile(data, [0.10, 0.90])
+        mu01, mu02 = np.quantile(data, [0.10, 0.70])
         mu03 = np.mean(data)
         sig01 = sig02 = abs(mu01 - mu02)/50
         sig03 = abs(mu01 - mu02)
