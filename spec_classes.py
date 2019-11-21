@@ -100,10 +100,11 @@ class Analysis_red(Root_reader):
         return remainder_array > run_tree.maint_duration
 
     def quality_cut_events(self,
-                           thresh_chi2_heat = 300,
-                           thresh_chi2_ion = 300,
+                           thresh_chi2_heat = np.inf,
+                           thresh_chi2_ion = 700,
                            thresh_offset_ion = 14000,
                            thresh_energy_heat = -np.inf,
+                           thresh_amp_ion = 200,
                            processing='filt_decor',
                            of_type='',):
         """ Define the quality cut """
@@ -149,7 +150,15 @@ class Analysis_red(Root_reader):
                 etype.cut.new_cut('energy_heat',
                                   energy[:, 0]>thresh_energy_heat)    
                 qual_cut_list.append(etype.cut.energy_heat)
-                
+
+                if self.type == 'normal':
+                    # CUT Amp Ion
+                    etype.cut.new_cut(
+                            'amp_ion',
+                            np.all(abs(energy[:, 2:])<thresh_amp_ion, axis=1)
+                    )                      
+                    qual_cut_list.append(etype.cut.amp_ion)
+
             
             if self.type == 'normal':
                 
@@ -162,7 +171,8 @@ class Analysis_red(Root_reader):
                 etype.cut.new_cut(
                         'offset_ion',
                         np.all(offset[:, 2:]<thresh_offset_ion, axis=1)
-                )      
+                )
+
                 qual_cut_list.append(etype.cut.chi2_ion)
                 qual_cut_list.append(etype.cut.offset_ion)
             

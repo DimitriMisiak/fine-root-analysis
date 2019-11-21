@@ -145,7 +145,8 @@ collect_qual = np.concatenate(collect_qual_list)
 collect_fid = np.concatenate(collect_fid_list)
 
 def energy_recoil(ec, ei, V):
-    coeff = 1.6e-19 * V / 3
+#    coeff = 1.6e-19 * V / 3
+    coeff = V / 3
     return ec*(1+coeff) - ei*coeff
 
 def quenching(ec, ei, V):
