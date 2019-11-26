@@ -5,17 +5,17 @@
 @author: misiak
 
 """
-
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from spec_classes import Analysis_red
 from representation import (
         temporal_plot, plot_chi2_vs_energy,
         histogram_adu, histogram_ev, ion_vs_ion,
-        virtual_vs_virtual_ev, optimization_info
+        virtual_vs_virtual_ev, optimization_info,
 )
 from model_spectrum import fid_mixture, double_norm
-from plot_addon import LegendTitle, custom_autoscale, ax_hist
+from plot_addon import LegendTitle, custom_autoscale, ax_hist, plot_ion_vs_ion
 from stats_addon import cdf_calc, custom_bin_edges
 
 run_dir = '/home/misiak/Data/data_run61'
@@ -30,9 +30,21 @@ plt.rcParams['text.usetex']=True
 
 n_sigma = 5
 
-#### for tg12l003
+### for tg12l003
+stream = 'tk20l001'  
+ana_1 = Analysis_red(
+        stream,
+        detector=detector,
+        run_dir=run_dir,
+        chan_valid=(0, 2, 3, 4, 5),
+        chan_signal=(0, 3, 5),
+        n_sigma=n_sigma,
+        override_mu=(861, -54, 54),
+        override_sigma=(40, 10, 9)
+)
+
 #stream = 'tk15l005'  
-#ana_1 = Analysis_red(
+#ana_2 = Analysis_red(
 #        stream,
 #        detector=detector,
 #        run_dir=run_dir,
@@ -43,263 +55,147 @@ n_sigma = 5
 #        override_sigma=(40, 10, 9)
 #)
 
-#### for tg13l000
-#stream = 'tk16l000' 
-#ana_2 = Analysis_red(
-#        stream,
-#        detector=detector,
-#        run_dir=run_dir,
-#        chan_valid=(0, 2, 3, 4, 5),
-#        chan_signal=(0, 3, 5),
-#        n_sigma=n_sigma,
-#        override_mu=(900, -53.4, 55),
-#        override_sigma=(60, 10, 8)
-#)
-
-### for tg13l000
-stream = 'tk18l000' 
-ana_3 = Analysis_red(
-        stream,
-        detector=detector,
-        run_dir=run_dir,
-        chan_valid=(0, 2, 3, 4, 5),
-        chan_signal=(0, 3, 5),
-        n_sigma=n_sigma,
-        override_mu=(900, -53.4, 55),
-        override_sigma=(60, 10, 8)
-)
-
-
 #%%
 
 plt.close('all')
 
 ##### USUAL PLOTSSS
-ana=ana_3
+ana=ana_1
 fig_temp = temporal_plot(ana)
 fig_chi2_trig, fig_chi2_noise = plot_chi2_vs_energy(ana)
 fig_hist_trig, fig_hist_noise = histogram_adu(ana)
-fig_hist_trig_ev, fig_hist_noise_ev = histogram_ev(ana)
+
+
+#%%
+### CUSTOM ANALYSIS
+import red_magic as rmc
+
+# sensitvity estimation a la mano
 fig_ion = ion_vs_ion(ana, n_sigma)
-fig_virtual = virtual_vs_virtual_ev(ana)
 
-##### ALL STREAMS PLOTS
-#ana_list = [ana_1, ana_2, ana_3, ana_4, ana_5, ana_6]
+axes = fig_ion.get_axes()
+ax = axes[3]
+ax.set_title('')
+
+line = ax.lines[1]
+print(line.get_label())
+
+def stats_funk(indexes):
+    x_data = line.get_xdata()[indexes]
+    y_data = line.get_ydata()[indexes]
+    
+    print('X Axis: mean={}    and    std={}'.format(x_data.mean(), x_data.std()))
+    print('Y Axis: mean={}    and    std={}'.format(y_data.mean(), y_data.std()))
+
+DS = rmc.Data_Selector(ax, line, proceed_func=stats_funk)
+
+#%%
+pos10_dict = {
+        'tk18l000':[300, 1, 50.20, -56.44, -52.32, 56.86],
+        'tk15l005':[383, 1, 50.56, -57.12, -51.18, 57.63],
+        'tk16l000':[371, 1, 48.93, -55.28, -52.44, 56.42],
+        'tk18l001':[395, 1, -50.52, 59.07, 51.83, -58.01],
+        'tk19l000':[265, 1, 47.55, -49.86, -50.31, 53.43],
+        'tk19l001':[233, 1, 39, -47.21, -42.86, 46.63],
+        'tk20l000':[562, 1, 49.45, -59.36, -51.95, 59.26],
+        'tk20l001':[541, 1, -55, -55, 55, 55],
+        'tk20l003':[350, 1, 52.86, -51.2, -53.93, 53.10],
+}
+
+
+# calibration a la mano
+energy_raw = ana.all.trig.filt_decor.Energy_OF[ana.all.trig.cut.quality]
+
+energy_calib = energy_raw * 10.37 / np.array(pos10_dict[stream])
+
+heat = energy_calib[:,0]
+ion_tot = np.sum(energy_calib[:,2:], axis=1)/2
+
+fig, ax = plt.subplots(num='Tot Ion vs Heat')
+ax.plot(heat, ion_tot, label='quality events', ls='none', marker='.')
+ax.grid()
+
+save_dir = '/home/misiak/Analysis/fine_root_analysis/crude_run61'
+fpath = '/'.join((save_dir, stream+'.npy'))
+
+def crude_funk(indexes):
+    np.save(fpath, indexes)
+    print('Indexes were saved !')
+
+line = ax.lines[0]
+DS_2 = rmc.Data_Selector(ax, line, proceed_func=crude_funk)
+
+#%%
+
+crude_ind = np.load(fpath)
+
+ax.plot(heat[crude_ind], ion_tot[crude_ind], label='quality events', ls='none', marker='.', color='r')
+
+energy_10kev = energy_calib[crude_ind]
+
+heat_adv, _, ionA, ionB, ionC, ionD = energy_10kev.T
+
+fig = plot_ion_vs_ion(ana, energy_10kev, marker=',')
+
+axes = fig.get_axes()
+
+ax = axes[3]
+ax.set_title('gotcha')
+
+print('Total number: ', crude_ind.size)
+
+fpath_2 = '/'.join((save_dir, stream+'_selection.npy'))
+def count_funk(indexes):
+    np.save(fpath_2, indexes)
+    print('Number in Selection: ', indexes.size)
+
+line = ax.lines[0]
+DS_3 = rmc.Data_Selector(ax, line, proceed_func=count_funk)
+
+#%%
+##Checking the regen: ion in function of the time
+#bulk_ind = np.load(fpath_2)
 #
-#stream_list = [ana.run for ana in ana_list]
-#sigma0_heat_list = [ana.all.noise.sigma0_ev.heat_a for ana in ana_list]
-#sigma0_collect_list = [ana.all.noise.sigma0_ev.collect for ana in ana_list]
-#sigma0_collect_list[1] = 246
+##time_10kev = ana.all.trig.time[ana.all.trig.cut.quality][crude_ind][bulk_ind]
+##energy = energy_raw[crude_ind][bulk_ind, 2:].T
 #
-#energy_list = [ana.all.trig.energy_ev for ana in ana_list]
+#time_tot = np.concatenate([time_tot_tk15, time_tot_tk16])
 #
-#cut_fid_list = [ana.all.trig.cut.fiducial for ana in ana_list]
-#cut_qual_list = [ana.all.trig.cut.quality for ana in ana_list]
+#time_frontier = np.concatenate([time_front_tk15, time_front_tk16])
 #
-#heat_qual_list = [energy.heat_a[cut] for energy, cut in zip(energy_list, cut_qual_list)]
-#heat_fid_list = [energy.heat_a[cut] for energy, cut in zip(energy_list, cut_fid_list)]
-#collect_qual_list = [energy.collect[cut] for energy, cut in zip(energy_list, cut_qual_list)]
-#collect_fid_list = [energy.collect[cut] for energy, cut in zip(energy_list, cut_fid_list)]
+#time_10kev = np.concatenate([time_10kev_tk15, time_10kev_tk16])
+#energy = np.concatenate([energy_tk15, energy_tk16], axis=1)
 #
-#heat_qual = np.concatenate(heat_qual_list)
-#heat_fid = np.concatenate(heat_fid_list)
-#collect_qual = np.concatenate(collect_qual_list)
-#collect_fid = np.concatenate(collect_fid_list)
-#
-#def energy_recoil(ec, ei, V):
-##    coeff = 1.6e-19 * V / 3
-#    coeff = V / 3
-#    return ec*(1+coeff) - ei*coeff
-#
-#def quenching(ec, ei, V):
-#    er = energy_recoil(ec, ei, V)
-#    return ei/er
-#
-#dv = 2 #2V
-#er_qual = energy_recoil(heat_qual, collect_qual, dv)
-#quenching_qual = quenching(heat_qual, collect_qual, dv)
-#er_fid = energy_recoil(heat_fid, collect_fid, dv)
-#quenching_fid = quenching(heat_fid, collect_fid, dv)
-#
-##bin_size = 1000
-##bins_energy_inf = np.arange(0, 12000, bin_size)
-##bins_energy_sup = np.arange(0, 12000, bin_size) + bin_size
-#
-##bins_energy_inf = [0, 1000, 3000, 4000, 6000, 7500, 10000]
-##bins_energy_sup = [1000, 2000, 3500, 5000, 6500, 8000, 11000]
-#
-#bins_energy_inf = [700, 1000, 1300, 3000, 10000]
-#bins_energy_sup = [900,1200, 1500, 3500, 11000]
-#
-#d_norm = double_norm()
-#heat_binned = list()
-#collect_binned = list()
-#
-#for inf, sup in zip(bins_energy_inf, bins_energy_sup):
-#    truth_inf = heat_fid > inf
-#    truth_sup = heat_fid < sup
-#    truth_tot = np.logical_and(truth_inf, truth_sup)
-#    heat_binned.append(heat_fid[truth_tot])
-#    collect_binned.append(collect_fid[truth_tot])
-#    
-#
-#popt_list = [d_norm.fit(collect, floc=0, fscale=1) for collect in collect_binned]
-#
-## histo resolution
-#fig = plt.figure()
-#plt.bar(stream_list, sigma0_heat_list, width=0.4, align='edge', label='Heat')
-#plt.bar(stream_list, sigma0_collect_list, width=0.3, align='center', label='Ion B+D')
-#plt.xlabel('Stream name')
-#plt.ylabel('Resolution [eV]')
-#plt.legend()
-#plt.grid()
+#fig, axes = plt.subplots(ncols=4, num='ion vs time', figsize=(15,6))
+#axes[0].grid()
 #
 #
-#fig, axes = plt.subplots(nrows=2, figsize=(10,10))
+#n, bins, patches = axes[1].hist(time_10kev, bins=10)
 #
-#for ax in axes:
-#    
-#    ax.plot(
-#            heat_fid, collect_fid,
-#            ls='none', marker='2', zorder=11, color='slateblue',
-#            label='Fiducial Events', alpha=0.7
-#    )
-#    ax.plot(
-#            heat_qual, collect_qual,
-#            ls='none', marker='1', zorder=10, color='coral',
-#            label='Quality Events', alpha=0.7
-#    )
-#      
-#    ax.legend(title='All streams')
-#    ax.set_xlabel('Heat Energy [eV]')
-#    ax.set_ylabel('Ion Energy [eV]')
-#    ax.grid(alpha=0.3)
+#n, bins2, patches = axes[2].hist(time_tot, bins=10)
 #
-#    
-#axes[0].set_xlim(0, 12e3)
-#axes[1].set_xlim(8e2, 12e3)
-#axes[0].set_ylim(-1000, 12e3)
-#axes[1].set_ylim(100, 20e3)
-#axes[1].set_xscale('log')
+#n, bins3, patches = axes[3].hist(time_frontier, bins=10)
+#
+#funk = lambda t,a,b: a + b*t
+#from scipy.optimize import curve_fit
+#
+#for j, ion in enumerate(energy):
+#    if j==1 or j==3:
+##        axes[0].axhline(np.mean(ion), ls='--', color='k', zorder=10)
+#        y_data = (ion-np.mean(ion))/np.mean(ion)
+#        axes[0].plot(time_10kev, y_data, ls='none', marker='.')
+#        popt, pcov = curve_fit(funk, time_10kev, y_data, p0=[np.mean(ion), 0])
+#        axes[0].plot(time_10kev, funk(time_10kev, *popt), 'k')
+#        
+#ax0 = ax_hist(axes[1], bins, time_10kev, 'Timestamp')[0]
 #axes[1].set_yscale('log')
+#ax0.plot(time_10kev[[0, -1]],[0, 1], color='k')
 #
-#fig.tight_layout()
+#ax1 = ax_hist(axes[2], bins2, time_tot, 'Timestamp')[0]
+#axes[2].set_yscale('log')
+#ax1.plot(time_tot[[0, -1]],[0, 1], color='k')
 #
-######## for quenching vs ER
-#
-#er_array = np.linspace(0, 15e3, int(1e4))
-#quenching_array = 0.16*(er_array*1e-3)**0.18
-#
-#fig, axes = plt.subplots(nrows=1, figsize=(10,10))
-#axes = [axes,]
-#for ax in axes:
-#    
-#    ax.plot(
-#            er_qual, quenching_qual,
-#            ls='none', marker='1', zorder=10, color='coral',
-#            label='Quality Events', alpha=0.7
-#    )    
-#    
-#    ax.plot(
-#            er_array, quenching_array,
-#            lw=5, zorder=10, color='limegreen',
-#            label='$Q=0.16E_R^{0.18}$', alpha=0.7
-#    )    
-#        
-#    ax.plot(
-#            er_fid, quenching_fid,
-#            ls='none', marker='2', zorder=11, color='slateblue',
-#            label='Fiducial Events', alpha=1,
-#    )
-#
-#      
-#    ax.legend(title='All streams')
-#    ax.set_xlabel('Recoil Energy [eV]')
-#    ax.set_ylabel('Quencing factor')
-#    ax.grid(alpha=0.3)
-#
-#fig.tight_layout()
-#
-#
-#
-#
-
-
-
-
-####### for section histogrmm
-
-#fig, axes = plt.subplots(nrows=1, figsize=(10,10))
-#axes = [axes,]
-#for ax in axes:
-#    
-#    ax.plot(
-#            heat_fid, collect_fid,
-#            ls='none', marker='o', zorder=11, color='slateblue',
-#            label='Fiducial Events', alpha=0.1
-#    )
-##    ax.plot(
-##            heat_qual, collect_qual,
-##            ls='none', marker='1', zorder=10, color='coral',
-##            label='Quality Events', alpha=0.7
-##    )
-#      
-#    ax.legend(title='All streams')
-#    ax.set_xlabel('Heat Energy [eV]')
-#    ax.set_ylabel('Ion Energy [eV]')
-#    ax.grid(alpha=0.3)
-#
-#    for inf, sup in zip(bins_energy_inf, bins_energy_sup):
-#        ax.axvspan(inf, sup, alpha=0.7, color='coral')
-#    
-#axes[0].set_xlim(0, 12e3)
-##axes[1].set_xlim(8e2, 12e3)
-#axes[0].set_ylim(-1000, 12e3)
-##axes[1].set_ylim(100, 20e3)
-##axes[1].set_xscale('log')
-##axes[1].set_yscale('log')
-#
-#fig.tight_layout()
-
-
-#
-## section hist
-#nbin = len(heat_binned)
-#
-##fig, axes = plt.subplots(ncols=int(nbin**0.5)+1, nrows=int(nbin**0.5), figsize=(15, 10))
-##axes = axes.flatten()
-#for i in range(nbin):
-#    
-#    fig, ax = plt.subplots()
-#    
-#    
-#    heat = heat_binned[i]
-#    collect = collect_binned[i]
-#    popt = popt_list[i]
-#    if collect.size == 0:
-#        continue
-#    
-##    ax = axes[i]
-#
-##    ax.hist(collect, bins=50)
-#    bin_edges = custom_bin_edges(collect, 50)
-#        
-#    a0 = ax_hist(ax, bin_edges, collect,
-#            'Fiducial events', color='limegreen')[0]   
-#    
-#
-#    xrange = np.linspace(collect.min(), collect.max(), 1000)
-#    pdf = d_norm.pdf(xrange, *popt)
-#    cdf = d_norm.cdf(xrange, *popt)
-#    normalization = collect.size
-#    pdf_norm = pdf * normalization * (bin_edges[1] - bin_edges[0])
-#    
-#    ax.autoscale(False)
-#    ax.plot(xrange, pdf_norm,
-#            ls='--', color='yellow',
-#            label='fit')
-#    
-#    a0.plot(xrange, cdf,
-#            ls='-.', color='yellow',
-#            label='fit')
+#ax2 = ax_hist(axes[3], bins3, time_frontier, 'Timestamp')[0]
+#axes[3].set_yscale('log')
+#ax2.plot(time_frontier[[0, -1]],[0, 1], color='k')
 #

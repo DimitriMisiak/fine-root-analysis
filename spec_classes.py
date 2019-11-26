@@ -100,8 +100,8 @@ class Analysis_red(Root_reader):
         return remainder_array > run_tree.maint_duration
 
     def quality_cut_events(self,
-                           thresh_chi2_heat = np.inf,
-                           thresh_chi2_ion = 700,
+                           thresh_chi2_heat = 2000,
+                           thresh_chi2_ion = 2000,
                            thresh_offset_ion = 14000,
                            thresh_energy_heat = -np.inf,
                            thresh_amp_ion = 200,

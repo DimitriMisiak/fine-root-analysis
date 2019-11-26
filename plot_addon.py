@@ -7,6 +7,7 @@ Some functions and classes for graphic representation.
 """
 
 import matplotlib.patheffects as pe
+import matplotlib.pyplot as plt
 import numpy as np
 
 from stats_addon import cdf_calc
@@ -110,3 +111,83 @@ def ax_hist(axis, bin_edges, data_array, lab, color='slateblue'):
     
     return a0, bin_array, data_hist, cdf_array
 
+
+def plot_ion_vs_ion(ana, energy_array, **kwargs):
+    """
+    Quick and dirty for run61.
+    """
+
+    # general
+    run_info = ' '.join([ana.run, ana.detector])
+    run_tree = ana.all.run_tree    
+    
+    # recovering data
+#    energy = trig.filt_decor.Energy_OF
+    energy = energy_array
+    
+    # initializing pseudo-corner plot
+    ax_tuples = [(0,0), (1,0), (1,1), (2,0), (2,1), (2,2)]
+    ax_discard = [(0, 1), (1, 2), (0, 2)]
+    
+    chan_x = np.insert(run_tree.chan_veto, 0, run_tree.chan_collect[1])
+    chan_y = np.append(run_tree.chan_veto, run_tree.chan_collect[0])
+    
+    num = '{} : Ion vs Ion CUSTOM'.format(run_info)
+    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(8.27, 8.27),
+                             num=num, sharex='col', sharey='row')
+    
+    
+    options = {'ls':'none', 'marker':'.', 'zorder':9, 'color':'k',}
+    options.update(kwargs)
+    
+    # actually plotting the data
+    for atupl in ax_tuples:
+        
+        ax = axes[atupl]
+        xind = chan_x[atupl[1]]
+        yind = chan_y[atupl[0]]
+    
+        energy_x = energy[:, xind]
+        energy_y = energy[:, yind]
+            
+        ax.plot(
+                energy_x, energy_y,
+                label='10kev events',
+                **options
+        )
+    
+
+        custom_autoscale(ax, energy_x, energy_y)
+        
+        ax.grid(alpha=0.3)
+        
+        if atupl == (0,0):
+            ax.legend(loc='lower left', framealpha=1,
+                      bbox_to_anchor=(1.05, 0.05), borderaxespad=0.,
+            )
+        
+        if atupl[0] == 2:
+            ax.set_xlabel(
+                    'Energy {} [ADU]'.format(
+                            run_tree.chan_label[xind].replace('_', ' ')
+                    )
+            )
+                
+        if atupl[1] == 0:
+            ax.set_ylabel(
+                    'Energy {} [ADU]'.format(
+                            run_tree.chan_label[yind].replace('_', ' ')
+                    )
+            )
+    
+    fig.text(0.65, 0.98, num,
+             horizontalalignment='center',
+             verticalalignment='center',
+             bbox=dict(facecolor='lime', alpha=0.5))
+    
+    for tupl in ax_discard:
+        fig.delaxes(axes[tupl])
+    fig.tight_layout()
+    fig.subplots_adjust(hspace=.0, wspace=.0)
+    
+    return fig
