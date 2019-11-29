@@ -218,9 +218,9 @@ def plot_chi2_vs_energy(ana):
             chi2 = etype.filt_decor.chi2_OF
             
         # chi2 vs Energy plot
-        ax_titles = run_tree.chan_label
         ax_tuples = ((1, 0), (0, 1), (0, 2), (1, 1), (1, 2))       
-        data_ind = run_tree.chan_valid     
+        data_ind = run_tree.chan_valid
+        ax_titles = run_tree.chan_label[data_ind]
         x_datas = (np.abs(energy[:, i]) for i in data_ind)    
         y_datas = (chi2[:, i] for i in data_ind)
     

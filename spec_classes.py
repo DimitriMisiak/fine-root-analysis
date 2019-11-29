@@ -34,6 +34,8 @@ class Analysis_red(Root_reader):
                 run_dir,
         )
 
+        self.n_sigma = n_sigma
+
         self.define_channels(chan_veto, chan_collect, chan_valid, chan_signal)
         self.temporal_data_extraction()
         self.quality_cut_events()
