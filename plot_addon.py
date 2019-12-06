@@ -191,3 +191,85 @@ def plot_ion_vs_ion(ana, energy_array, **kwargs):
     fig.subplots_adjust(hspace=.0, wspace=.0)
     
     return fig
+
+
+def basic_corner(samples, labels, axes=None, **kwargs):
+    
+    assert samples.ndim == 2
+    
+    clen, cnum = samples.shape
+    assert clen > cnum
+    
+    nplot = cnum - 1
+    
+    num = 'Basic corner plot'
+    
+    if axes is None:
+        fig, axes = plt.subplots(nrows=nplot, ncols=nplot, figsize=(9, 9),
+                                 num=num, sharex='col', sharey='row')
+    
+    else:
+        fig = axes.flatten()[0].get_figure()
+#    # lower triangle axes without diagonal
+#    axes_active = np.tril(axes, -1)
+#    # upper triangle axes with diagonal
+#    axes_discarded = np.triu(axes, 0)
+    
+    options = {'ls':'none',
+               'marker':'.',
+               'zorder':9,
+               'color':'k',
+               'markersize':2}
+    options.update(kwargs)
+    
+    for i in range(nplot):
+        for j in range(nplot):
+            ax = axes[i,j]
+            
+            # removing upper plots
+            if i < j:
+                try:
+                    fig.delaxes(ax)
+                except:
+                    pass
+        
+            x_data = samples[:, (cnum-1+j)%cnum]
+            y_data = samples[:, i]
+            
+            ax.plot(
+                    x_data, y_data,
+                    **options
+            )            
+            
+            custom_autoscale(ax, x_data, y_data)
+        
+            ax.grid(alpha=0.3)
+        
+            if (i==0) and (j==0):
+                ax.legend(loc='lower left', framealpha=1,
+                          bbox_to_anchor=(1.05, 0.05), borderaxespad=0.,
+                )
+        
+            if (i==nplot-1):
+                ax.set_xlabel(
+                        '{}'.format(
+                                labels[(cnum-1+j)%cnum].replace('_', ' ')
+                        )
+                )
+                    
+            if (j==0):
+                ax.set_ylabel(
+                        '{}'.format(
+                                labels[i].replace('_', ' ')
+                        )
+                )
+    
+    fig.text(0.65, 0.98, num,
+             horizontalalignment='center',
+             verticalalignment='center',
+             bbox=dict(facecolor='lime', alpha=0.5))
+    
+    fig.tight_layout()
+    fig.subplots_adjust(hspace=.0, wspace=.0)
+    
+    return fig, axes

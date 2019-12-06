@@ -7,7 +7,7 @@
 """
 import numpy as np
 
-from red_magic import Root_reader, Artifact
+from stream_reader_fond_neutron import Root_reader, Artifact
 from model_spectrum import fid_mixture, double_norm
 
 
@@ -25,6 +25,9 @@ class Analysis_red(Root_reader):
             n_sigma=2,
             override_mu=None,
             override_sigma=None,
+            thresh_heat=300,
+            thresh_ion=300,
+            time_cut=None,
     ):
         
         Root_reader.__init__(
@@ -38,7 +41,11 @@ class Analysis_red(Root_reader):
 
         self.define_channels(chan_veto, chan_collect, chan_valid, chan_signal)
         self.temporal_data_extraction()
-        self.quality_cut_events()
+        self.quality_cut_events(
+                thresh_chi2_heat=thresh_heat,
+                thresh_chi2_ion=thresh_ion,
+                time_cut=time_cut,
+        )
         self.baseline_resolution()
         self.fiducial_cut_events(n_sigma=n_sigma)
         self.init_spectrum_model()
@@ -102,13 +109,14 @@ class Analysis_red(Root_reader):
         return remainder_array > run_tree.maint_duration
 
     def quality_cut_events(self,
-                           thresh_chi2_heat = 250,
-                           thresh_chi2_ion = 25000,
+                           thresh_chi2_heat = 300,
+                           thresh_chi2_ion = 300,
                            thresh_offset_ion = 14000,
                            thresh_energy_heat = -np.inf,
                            thresh_amp_ion = np.inf,
                            processing='filt_decor',
-                           of_type='',):
+                           of_type='',
+                           time_cut=None):
         """ Define the quality cut """
         
         trig = self.all.trig
@@ -135,12 +143,20 @@ class Analysis_red(Root_reader):
             etype.cut.new_cut('maintenance',
                               self._maintenance_cut(etype.time))
         
+            # CUT Custom temporal cut
+            if time_cut is None:
+                temp_cut =True * np.ones(etype.time.shape)
+            else:
+                temp_cut = (etype.time <= time_cut[0]) | (etype.time >= time_cut[1])
+                
+            etype.cut.new_cut('temporal', temp_cut)
+        
 #            # CUT Chi2 heat
 #            etype.cut.new_cut('chi2_heat',
 #                              chi2[:, 0]<thresh_chi2_heat)
             
             # CUT Chi2 heat (non_linear cut)
-            cut_nonlinear = thresh_chi2_heat + (energy[:,0]/10.37)**2
+            cut_nonlinear = thresh_chi2_heat*(1+(energy[:,0]/2e3)**2)
             etype.cut.new_cut('chi2_heat',
                               chi2[:, 0]<cut_nonlinear)            
 
@@ -149,6 +165,7 @@ class Analysis_red(Root_reader):
             qual_cut_list = [
                     etype.cut.maintenance,
                     etype.cut.chi2_heat,
+                    etype.cut.temporal,
             ]
             
             if etype is trig:
@@ -169,9 +186,11 @@ class Analysis_red(Root_reader):
             if self.type == 'normal':
                 
                 # CUT Chi2 Ion
+                cut_ion_nonlinear = thresh_chi2_ion*(1+(abs(energy[:,2:])/3e2)**2.2)
+#                cut_ion_nonlinear = 300 * energy[:,2:]
                 etype.cut.new_cut(
                         'chi2_ion',
-                        np.all(chi2[:, 2:]<thresh_chi2_ion, axis=1)
+                        np.all(chi2[:, 2:]<cut_ion_nonlinear, axis=1)
                 )    
                 # CUT Offset Ion
                 etype.cut.new_cut(

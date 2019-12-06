@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from plot_addon import LegendTitle, custom_autoscale, ax_hist
 from stats_addon import cdf_calc, custom_bin_edges
+from scipy.stats import norm
 
 from spec_classes import Analysis_red
 
@@ -325,30 +326,35 @@ def histogram_adu(ana):
                     a0 = ax_hist(ax, bin_edges, xdata_fid,
                             'Fiducial events', color='limegreen')[0]        
                 
-                if ind in run_tree.chan_signal:
-                    
-                    xdata_fit = xdata_qual
-                    if ana.calibration_peak.cut_type == 'fiducial':
-                        xdata_fit = xdata_fid
-                    
-                    popt = getattr(ana.model.popt, label)
-                    xrange = np.linspace(xdata_fit.min(), xdata_fit.max(), 1000)
-                    pdf = ana.model.dist.pdf(xrange, *popt)
-                    cdf = ana.model.dist.cdf(xrange, *popt)
-                    normalization = getattr(trig,
-                                            'nsamples_{}'.format(
-                                                    ana.calibration_peak.cut_type
-                                            ))
-                    pdf_norm = pdf * normalization * (bin_edges[1] - bin_edges[0])
-                    
-                    ax.autoscale(False)
-                    ax.plot(xrange, pdf_norm,
-                            ls='--', color='yellow',
-                            label='fit')
-                    
-                    a0.plot(xrange, cdf,
-                            ls='-.', color='yellow',
-                            label='fit')
+##                if ind in run_tree.chan_signal:
+#                if ind == 0: # only for heat channel
+#                    
+#                    xdata_fit = xdata_qual[(xdata_qual>1000) & (xdata_qual<1400)]
+#                    popt = norm.fit(xdata_fit)
+#                    
+#                    if ana.calibration_peak.cut_type == 'fiducial':
+#                        xdata_fit = xdata_fid
+#                    
+##                    popt = getattr(ana.model.popt, label)
+#                    xrange = np.linspace(xdata_fit.min(), xdata_fit.max(), 1000)
+##                    pdf = ana.model.dist.pdf(xrange, *popt)
+##                    cdf = ana.model.dist.cdf(xrange, *popt)
+#                    pdf = norm.pdf(xrange, *popt)
+#                    cdf = norm.cdf(xrange, *popt)
+#                    normalization = getattr(trig,
+#                                            'nsamples_{}'.format(
+#                                                    ana.calibration_peak.cut_type
+#                                            ))
+#                    pdf_norm = pdf * normalization * (bin_edges[1] - bin_edges[0])
+#                    
+#                    ax.autoscale(False)
+#                    ax.plot(xrange, pdf_norm,
+#                            ls='--', color='yellow',
+#                            label='fit')
+#                    
+#                    a0.plot(xrange, cdf,
+#                            ls='-.', color='yellow',
+#                            label='fit')
             
             ax.legend(loc=2)
             ax.set_title(label.replace('_', ' '))
