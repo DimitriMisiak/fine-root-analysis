@@ -198,22 +198,27 @@ def temporal_plot(ana):
     return fig
 
 
-def plot_chi2_vs_energy(ana):
+def plot_chi2_vs_energy(ana, trig_only=False):
 
     # general
     run_info = ' '.join([ana.run, ana.detector])
     trig = ana.all.trig
-    noise = ana.all.noise
+    
     run_tree = ana.all.run_tree    
-    etypes = [trig, noise]
+    etypes = [trig,]
+    
+    if not trig_only:
+        noise = ana.all.noise
+        etypes = [trig, noise]
     
     fig_list = list()
     for etype in etypes:
     
-        if etype is noise:
-            energy = etype.filt_decor.Energy_OF_t0
-            chi2 = etype.filt_decor.chi2_OF_t0        
-        
+        if not trig_only:
+            if etype is noise:
+                energy = etype.filt_decor.Energy_OF_t0
+                chi2 = etype.filt_decor.chi2_OF_t0        
+            
         if etype is trig:
             energy = etype.filt_decor.Energy_OF
             chi2 = etype.filt_decor.chi2_OF
@@ -273,20 +278,24 @@ def plot_chi2_vs_energy(ana):
     return fig_list
 
 
-def histogram_adu(ana):
+def histogram_adu(ana, trig_only=False):
     
     # general
     run_info = ' '.join([ana.run, ana.detector])
     trig = ana.all.trig
-    noise = ana.all.noise
     run_tree = ana.all.run_tree    
-    etypes = [trig, noise]
+    etypes = [trig,]
     
+    if not trig_only:
+        noise = ana.all.noise
+        etypes = [trig, noise]
+        
     fig_list = list()
     for etype in etypes:
     
-        if etype is noise:
-            energy = etype.filt_decor.Energy_OF_t0
+        if not trig_only:
+            if etype is noise:
+                energy = etype.filt_decor.Energy_OF_t0
         
         if etype is trig:
             energy = etype.filt_decor.Energy_OF
@@ -307,12 +316,16 @@ def histogram_adu(ana):
             ax = axes[tupl]
             xdata_qual = xdata[etype.cut.quality]
             
-            if etype is noise:
-                bin_edges = np.histogram_bin_edges(xdata[etype.cut.quality])
+            if not trig_only:
+                if etype is noise:
+                    bin_edges = np.histogram_bin_edges(xdata[etype.cut.quality])
             
             if etype is trig:
-                bin_edges = custom_bin_edges(xdata_qual, 
-                                             getattr(noise.sigma0, label))
+                try:
+                    bin_edges = custom_bin_edges(xdata_qual, 
+                                                 getattr(noise.sigma0, label))
+                except:
+                    bin_edges = np.histogram_bin_edges(xdata[etype.cut.quality])
         
             ax_hist(ax, bin_edges, xdata,
                     'All events', color='coral')
@@ -321,10 +334,13 @@ def histogram_adu(ana):
             
             if etype is trig:
                 
-                if ana.calibration_peak.cut_type == 'fiducial':
-                    xdata_fid = xdata[trig.cut.fiducial]
-                    a0 = ax_hist(ax, bin_edges, xdata_fid,
-                            'Fiducial events', color='limegreen')[0]        
+                try:
+                    if ana.calibration_peak.cut_type == 'fiducial':
+                        xdata_fid = xdata[trig.cut.fiducial]
+                        a0 = ax_hist(ax, bin_edges, xdata_fid,
+                                'Fiducial events', color='limegreen')[0]        
+                except:
+                    pass
                 
 ##                if ind in run_tree.chan_signal:
 #                if ind == 0: # only for heat channel
@@ -359,8 +375,9 @@ def histogram_adu(ana):
             ax.legend(loc=2)
             ax.set_title(label.replace('_', ' '))
             
-            if etype is noise:
-                ax.set_yscale('linear')
+            if not trig_only:
+                if etype is noise:
+                    ax.set_yscale('linear')
         
         fig.text(0.5, 0.98, num,
                  horizontalalignment='center',
@@ -369,29 +386,33 @@ def histogram_adu(ana):
     
         if etype is trig:
             
-            msg_list = list()
-            for ind in run_tree.chan_signal:
-                lab = run_tree.chan_label[ind]
-                polar, pos10kev, sens_adu, gain_chan, sens_nv, sigma_adu, sigma_ev = optimization_info(ana, ind)
-                msg_title = r'\underline{'+lab.replace('_', ' ')+'}'
-                msg_core = (
-                r'\\ '
-                r'Position 10keV = {:.0f} ADU \\ '
-                r'Gain = {} nV/ADU \\ '
-                r'Sensitivity = {:.2e} ADU/eV = {:.1f} nV/keV \\ '
-                r'Resolution = {:.2f} ADU = {:.1f} eV '
-                ).format(pos10kev, gain_chan, sens_adu, sens_nv, sigma_adu, sigma_ev)
-                
-                msg_chan = msg_title+msg_core
-                msg_list.append(msg_chan)
-        
-            msg = r'\\'.join(msg_list)
+            try:
+                msg_list = list()
+                for ind in run_tree.chan_signal:
+                    lab = run_tree.chan_label[ind]
+                    polar, pos10kev, sens_adu, gain_chan, sens_nv, sigma_adu, sigma_ev = optimization_info(ana, ind)
+                    msg_title = r'\underline{'+lab.replace('_', ' ')+'}'
+                    msg_core = (
+                    r'\\ '
+                    r'Position 10keV = {:.0f} ADU \\ '
+                    r'Gain = {} nV/ADU \\ '
+                    r'Sensitivity = {:.2e} ADU/eV = {:.1f} nV/keV \\ '
+                    r'Resolution = {:.2f} ADU = {:.1f} eV '
+                    ).format(pos10kev, gain_chan, sens_adu, sens_nv, sigma_adu, sigma_ev)
+                    
+                    msg_chan = msg_title+msg_core
+                    msg_list.append(msg_chan)
             
-            fig.text(0.1, 0.82, msg,
-                     horizontalalignment='left',
-                     verticalalignment='center',
-                     bbox=dict(facecolor='white', alpha=0.5))
-    
+                msg = r'\\'.join(msg_list)
+                
+                fig.text(0.1, 0.82, msg,
+                         horizontalalignment='left',
+                         verticalalignment='center',
+                         bbox=dict(facecolor='white', alpha=0.5))
+        
+            except:
+                pass
+            
         fig.delaxes(axes[0,0])    
         fig.tight_layout()
         
@@ -468,15 +489,20 @@ def ion_vs_ion(ana, n_sigma):
     # general
     run_info = ' '.join([ana.run, ana.detector])
     trig = ana.all.trig
-    noise = ana.all.noise
+    
     run_tree = ana.all.run_tree    
     
+    if n_sigma != 0:
+        noise = ana.all.noise
     # recovering data
     energy = trig.filt_decor.Energy_OF
     cut_qual = trig.cut.quality
     
-    if ana.calibration_peak.cut_type == 'fiducial':
-        cut_fid = trig.cut.fiducial
+    try:
+        if ana.calibration_peak.cut_type == 'fiducial':
+            cut_fid = trig.cut.fiducial
+    except:
+        pass
     
     # initializing pseudo-corner plot
     ax_tuples = [(0,0), (1,0), (1,1), (2,0), (2,1), (2,2)]
@@ -499,13 +525,16 @@ def ion_vs_ion(ana, n_sigma):
         energy_x = energy[:, xind]
         energy_y = energy[:, yind]
     
-        if ana.calibration_peak.cut_type == 'fiducial':
-            ax.plot(
-                    energy_x[cut_fid], energy_y[cut_fid],
-                    ls='none', marker='2', zorder=11, color='limegreen',
-                    label='Fiducial Events'
-            )
-    
+        try:
+            if ana.calibration_peak.cut_type == 'fiducial':
+                ax.plot(
+                        energy_x[cut_fid], energy_y[cut_fid],
+                        ls='none', marker='2', zorder=11, color='limegreen',
+                        label='Fiducial Events'
+                )
+        except:
+            pass
+        
         ax.plot(
                 energy_x[cut_qual], energy_y[cut_qual],
                 ls='none', marker='1', zorder=10, color='slateblue',
@@ -518,19 +547,20 @@ def ion_vs_ion(ana, n_sigma):
                 label='All events'
         )
     
-        if xind in run_tree.chan_veto:
-            lab = run_tree.chan_label[xind]
-            xamp = n_sigma*getattr(noise.sigma0, lab)
-            ymin, ymax = energy_y.min(), energy_y.max()
-            ax.fill_betweenx([ymin, ymax], -xamp, +xamp, color='lavender')
-    
-        if yind in run_tree.chan_veto:
-            lab = run_tree.chan_label[yind]
-            yamp = n_sigma*getattr(noise.sigma0, lab)
-            xmin, xmax = energy_x.min(), energy_x.max()
-            ax.fill_between([xmin, xmax], -yamp, +yamp, color='lavender',
-                             label='Fiducial selection ({}$\sigma$)'.format(n_sigma)
-                            )
+        if n_sigma != 0:
+            if xind in run_tree.chan_veto:
+                lab = run_tree.chan_label[xind]
+                xamp = n_sigma*getattr(noise.sigma0, lab)
+                ymin, ymax = energy_y.min(), energy_y.max()
+                ax.fill_betweenx([ymin, ymax], -xamp, +xamp, color='lavender')
+        
+            if yind in run_tree.chan_veto:
+                lab = run_tree.chan_label[yind]
+                yamp = n_sigma*getattr(noise.sigma0, lab)
+                xmin, xmax = energy_x.min(), energy_x.max()
+                ax.fill_between([xmin, xmax], -yamp, +yamp, color='lavender',
+                                 label='Fiducial selection ({}$\sigma$)'.format(n_sigma)
+                                )
 
             
         custom_autoscale(ax, energy_x[cut_qual], energy_y[cut_qual])
@@ -583,8 +613,11 @@ def virtual_vs_virtual_ev(ana):
     energy = trig.energy_ev
     cut_qual = trig.cut.quality
     
-    if ana.calibration_peak.cut_type == 'fiducial':
-        cut_fid = trig.cut.fiducial
+    try:
+        if ana.calibration_peak.cut_type == 'fiducial':
+            cut_fid = trig.cut.fiducial
+    except:
+        pass
     
     # initializing pseudo-corner plot
     ax_tuples = [(0,0), (1,0), (1,1), (2,0), (2,1), (2,2)]
@@ -610,13 +643,16 @@ def virtual_vs_virtual_ev(ana):
         energy_x = getattr(energy, xlab)
         energy_y = getattr(energy, ylab)
     
-        if ana.calibration_peak.cut_type == 'fiducial':
-            ax.plot(
-                    energy_x[cut_fid], energy_y[cut_fid],
-                    ls='none', marker='2', zorder=11, color='limegreen',
-                    label='Fiducial Events'
-            )
-    
+        try:
+            if ana.calibration_peak.cut_type == 'fiducial':
+                ax.plot(
+                        energy_x[cut_fid], energy_y[cut_fid],
+                        ls='none', marker='2', zorder=11, color='limegreen',
+                        label='Fiducial Events'
+                )
+        except:
+            pass
+        
         ax.plot(
                 energy_x[cut_qual], energy_y[cut_qual],
                 ls='none', marker='1', zorder=10, color='slateblue',

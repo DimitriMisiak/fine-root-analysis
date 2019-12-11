@@ -8,7 +8,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from spec_classes_fond_neutron import Analysis_red
+from spec_classes_fond_neutron import Analysis_red_simu
 from representation import (
         temporal_plot, plot_chi2_vs_energy,
         histogram_adu, histogram_ev, ion_vs_ion,
@@ -18,19 +18,26 @@ from model_spectrum import fid_mixture, double_norm
 from plot_addon import LegendTitle, custom_autoscale, ax_hist, plot_ion_vs_ion, basic_corner
 from stats_addon import cdf_calc, custom_bin_edges
 import red_magic as rmc
+import sys
 
 
 # matplotlib configuration
 plt.close('all')
 plt.rcParams['text.usetex']=True
 
-
-stream = 'tg27l000'
-save_flag = False
+try:
+    stream, simu = sys.argv[1:]
+except:
+    print('BATCH FAILED !!!')
+    stream = 'tg17l007'    
+    simu = 'Flat_Analytical_SimuOnly_0.0000_50.0000_NR_1'
+    
+#stream = 'tg27l000'
+save_flag = True
 
 # global variables
-SAVE_DIR = '/home/misiak/Analysis/fine_root_analysis/fond_neutron/{}'.format(stream)
-DATA_DIR = '/home/misiak/Data/data_run57_neutron/Data'
+SAVE_DIR = '/home/misiak/Analysis/fine_root_analysis/fond_neutron/{}/{}'.format(stream, simu)
+DATA_DIR = '/home/misiak/Data/data_run57_neutron/SimuCoinc'
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 
@@ -50,13 +57,14 @@ if stream == 'tg28l000':
 
 thresh_ion = 300
 # getting the data
-ana = Analysis_red(
+ana = Analysis_red_simu(
         stream,
+        simu,
         detector='RED80',
         run_dir=DATA_DIR,
         chan_valid=(0, 2, 3, 4, 5),
         chan_signal=(0, 3, 5),
-        n_sigma=5,
+        n_sigma=0,
         override_mu=(861, -54, 54),
         override_sigma=(40, 10, 9),
         thresh_heat=thresh_heat,
@@ -100,7 +108,7 @@ ax.set_ylim(10**1, 10**5)
 
 
 # QUALITY CUTS
-fig_chi2_trig, fig_chi2_noise = plot_chi2_vs_energy(ana)
+fig_chi2_trig, = plot_chi2_vs_energy(ana, trig_only=True)
 
 # plotting the quality cuts
 x_data = 10**np.linspace(-2, 5, int(1e4))
@@ -120,7 +128,7 @@ for ax in fig_chi2_trig.get_axes():
     ax.legend()
 
 # HEAT CALIBRATION
-fig_hist_trig, fig_hist_noise = histogram_adu(ana)
+fig_hist_trig, = histogram_adu(ana, trig_only=True)
 
 # resize the plots
 fig_hist_trig.get_axes()[0].set_xlim(-200, 2000)
@@ -137,14 +145,64 @@ if save_flag:
     fig_temp.savefig(SAVE_DIR+'/fig_temp.png')
     fig_heat.savefig(SAVE_DIR+'/fig_heat.png')
     fig_chi2_trig.savefig(SAVE_DIR+'/fig_chi2_trig.png')
-    fig_chi2_noise.savefig(SAVE_DIR+'/fig_chi2_noise.png')
     fig_hist_trig.savefig(SAVE_DIR+'/fig_hist_trig.png')
-    fig_hist_noise.savefig(SAVE_DIR+'/fig_hist_noise.png')   
 
-    
+
+#%%
+# CUT TRIGGER
+dt_data = ana.all.tsimucoinc.deltaT_simu_data
+dt_simu = ana.all.tsimucoinc.deltaT_simu_datasimu
+
+cut_trigger = (abs(dt_data) > 5) & (abs(dt_simu) < 5)
+
+time = ana.all.trig.filt_decor.time_stream
+fig_trigger, axes = plt.subplots(nrows=2, sharex=True)
+
+axes[0].plot(
+    time, dt_simu,
+    label='all simu',
+    ls='none', marker='.', markersize=3
+)
+
+axes[0].plot(
+    time[cut_trigger], dt_simu[cut_trigger],
+    label='trig simu',
+    ls='none', marker='.', color='k'
+)
+
+
+axes[0].axhspan(-5, 5, color='limegreen')
+
+axes[1].plot(
+        time, dt_data,
+        label='all simu',
+        ls='none', marker='.', markersize=3
+)
+
+axes[1].plot(
+        time[cut_trigger], dt_data[cut_trigger],
+        label='trig simu',
+        ls='none', marker='.', color='k'
+)
+
+axes[1].axhspan(-5, 5, color='coral')
+
+axes[0].set_ylabel(r'$\Delta T_{simu}$')
+axes[1].set_ylabel(r'$\Delta T_{data}$')
+axes[1].set_xlabel('Time [hours]')
+
+axes[0].legend()
+axes[1].legend()
+
+fig_trigger.tight_layout()
+fig_trigger.subplots_adjust(hspace=.0)
+
+if save_flag:
+    fig_trigger.savefig(SAVE_DIR+'/fig_trigger.png')
+
 #%%
 # CROSSTALK correction
-energy_array = ana.all.trig.filt_decor.Energy_OF[ana.all.trig.cut.quality]
+energy_array = ana.all.trig.filt_decor.Energy_OF[ana.all.trig.cut.quality & cut_trigger]
 #energy_array = ana.all.trig.filt.Energy_OF[ana.all.trig.cut.quality]
 
 #corr_matrix = np.array([
@@ -293,8 +351,8 @@ pos10_dict = {
 
 
 # energy in ADU
-energy_raw = ana.all.trig.filt_decor.Energy_OF[ana.all.trig.cut.quality]
-energy_raw_nodecor = ana.all.trig.filt.Energy_OF[ana.all.trig.cut.quality]
+energy_raw = ana.all.trig.filt_decor.Energy_OF[ana.all.trig.cut.quality & cut_trigger]
+energy_raw_nodecor = ana.all.trig.filt.Energy_OF[ana.all.trig.cut.quality & cut_trigger]
 # energy in keV
 
 
@@ -310,6 +368,32 @@ ion_conv_nodecor = np.sum(np.array([1, 1, -1, -1])*energy_calib_nodecor[:,2:], a
 threshold_conv = 1
 cut_conv = (abs(ion_conv)<=threshold_conv)
 cut_noconv = (abs(ion_conv)>threshold_conv)
+
+####################################
+# SAVING THE QUALITY CALIBRATED DATA
+calibrated_energy = ana.all.trig.filt_decor.Energy_OF * 10.37 / np.array(pos10_dict[ana.run])
+calibrated_energy_bis = calibrated_energy[ana.all.trig.cut.temporal.astype(bool)]
+np.save(SAVE_DIR+'/energy_calibrated.npy', calibrated_energy_bis)
+trigger_energy = calibrated_energy[cut_trigger]
+np.save(SAVE_DIR+'/energy_trigger.npy', trigger_energy)
+quality_energy = calibrated_energy[ana.all.trig.cut.quality & cut_trigger][cut_conv]
+np.save(SAVE_DIR+'/energy_quality.npy', quality_energy)
+
+
+# saving input energy
+np.save(
+        SAVE_DIR+'/input_energy_all.npy', 
+        ana.all.tree_Input_SimuOnly_Energy.Energy_In[ana.all.trig.cut.temporal.astype(bool)]
+)
+np.save(
+        SAVE_DIR+'/input_energy_trigger.npy', 
+        ana.all.tree_Input_SimuOnly_Energy.Energy_In[cut_trigger]
+)
+np.save(
+        SAVE_DIR+'/input_energy_quality.npy', 
+        ana.all.tree_Input_SimuOnly_Energy.Energy_In[ana.all.trig.cut.quality & cut_trigger][cut_conv]
+)
+####################################
 
 fig_conv, axes = plt.subplots(nrows=2, sharex=True, figsize=(7,8), num='fig_conv')
 
@@ -347,7 +431,7 @@ samples = np.c_[energy_calib[:, 2:], ion_conv]
 
 labels = ('ionA', 'ionB', 'ionC', 'ionD', 'Conv')
 fig, axes = basic_corner(samples[cut_conv, :], labels, color='k')
-fig, axes = basic_corner(samples[cut_noconv, :], labels, axes=axes, color='r')
+#fig, axes = basic_corner(samples[cut_noconv, :], labels, axes=axes, color='r')
 
 #%%
 # SELECTION of the 10keV events
@@ -399,4 +483,3 @@ line = ax.lines[0]
 
 if save_flag:
     fig.savefig(SAVE_DIR+'/fig_selection.png')
-

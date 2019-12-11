@@ -23,6 +23,13 @@ cartoon = [
 ]
 
 
+simu_list = [
+        'Flat_Analytical_SimuOnly_0.0000_50.0000_ER',
+        'Flat_Analytical_SimuOnly_0.0000_50.0000_NR',
+        'Line_Analytical_SimuOnly_1.3000_ER',
+        'Line_Analytical_SimuOnly_10.3700_ER',
+]
+
 def stats_funk(indexes):
     """
     Used for the proceed button in the Data_selector class.
@@ -39,14 +46,15 @@ def stats_funk(indexes):
 
 
 #stream = 'tg27l000'
+simu = simu_list[2]
 save_flag = True
 
 with open('/home/misiak/Data/data_run57_neutron/stream_config.json', 'r') as cfg:
     config = json.load(cfg)
 
 calibration_quality = list()
-for stream in config['Background']:
-    save_dir = '/home/misiak/Analysis/fine_root_analysis/fond_neutron/{}'.format(stream)
+for stream in config['Calibration']:
+    save_dir = '/home/misiak/Analysis/fine_root_analysis/fond_neutron/{}/{}_tot'.format(stream, simu)
     raw_load = np.load(save_dir+'/energy_quality.npy')
     data_quality = np.delete(raw_load, 1, axis=1)
     calibration_quality.append(data_quality)
@@ -343,34 +351,29 @@ heat_gamma = energy_recoil(heat_fid[gamma_cut], collect_fid[gamma_cut], dv)
 heat_neutron = energy_recoil(heat_fid[neutron_cut], collect_fid[neutron_cut], dv)
 heat_ho = energy_recoil(heat_fid[HO_cut], collect_fid[HO_cut], dv)
 
-fig, axes = plt.subplots(ncols=2, nrows=2, figsize=(10, 5))
+fig, axes = plt.subplots(ncols=2, figsize=(10, 5))
 fig.suptitle('Recoil Energy Spectrum keV')
 
-for ax in axes.T:
+for ax in axes:
 
 #n, bins, patches = ax.hist(heat_fid, bins=250,
 #                           label='fid events',
 #                           color='grey', alpha=0.1)
     
-    n, bins, patches = ax[0].hist(
+    n, bins, patches = ax.hist(
             heat_gamma, bins=500,
             label='Gamma band',
             color='deepskyblue', alpha=0.5
     )
-    ax[1].hist(heat_neutron, bins=bins,
+    ax.hist(heat_neutron, bins=bins,
             label='NR band',
             color='coral', alpha=0.5)
 #    ax.hist(heat_ho, bins=bins,
 #            label='HO band',
 #            color='k', alpha=0.1)
 
-    for a in ax:
-        a.set_ylabel('Counts, bin width = {:.3f}'.format(bins[1]-bins[0]))
-        a.set_yscale('log')
-        a.legend()
-    ax[1].set_xlabel('Recoil Energy [keV]')
-
-
-#axes[1].set_xscale('log')
-#axes[0].set_title('linear')
-#axes[1].set_title('log')
+    ax.set_ylabel('Counts, bin width = {:.3f}'.format(bins[1]-bins[0]))
+    ax.set_xlabel('Recoil Energy [keV]')
+    ax.set_yscale('log')
+    ax.legend()
+axes[1].set_xscale('log')
