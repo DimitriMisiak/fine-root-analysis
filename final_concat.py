@@ -42,7 +42,7 @@ for mode in mode_list:
     concat_dict = {k:np.concatenate(v) for k,v in data_dict.items()}
     
     for k,v in concat_dict.items():
-        save_dir = '/home/misiak/Analysis/fine_root_analysis/fond_neutron/{}'.format(mode)
+        save_dir = '/home/misiak/Analysis/fine_root_analysis/fond_neutron/{}/data'.format(mode)
         os.makedirs(save_dir, exist_ok=True)
         np.save(save_dir + '/' + k, v)
 

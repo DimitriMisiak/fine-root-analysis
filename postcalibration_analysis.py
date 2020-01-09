@@ -140,7 +140,7 @@ fig, ax = plt.subplots()
 
 line, = ax.plot(heat_fid, collect_fid,
         label='fid events',
-        ls='none', marker='.', alpha=0.1, color='grey')
+        ls='none', marker='x', alpha=0.6, color='k')
 
 ## calling the Data_Selector class
 #DS = rmc.Data_Selector(ax, line, proceed_func=stats_funk)
@@ -185,14 +185,16 @@ ax.plot(ec_graph, ec_graph,
         zorder=20)
 ax.fill_between(ec_graph, ec_graph + 3*std_graph, ec_graph - 3*std_graph,
                 color='deepskyblue', alpha=0.2,
-                zorder=-10)
+                zorder=10)
 
 std_fid = std_collect(heat_fid)
 gamma_cut = (collect_fid < (heat_fid + 3*std_fid)) & (collect_fid > (heat_fid - 3*std_fid))
 ax.plot(heat_fid[gamma_cut], collect_fid[gamma_cut],
         label='gamma band',
         ls='none', marker='.', alpha=0.7, markersize=10, color='steelblue')
-
+# ax.plot(heat_fid[gamma_cut], collect_fid[gamma_cut],
+#         label='gamma band',
+#         ls='none', marker='.', alpha=0.7, markersize=5, color='k')
 # neutron cut
 ei_graph = np.interp(ec_graph, ec_array, ei_array)
 ax.plot(ec_graph, ei_graph, 

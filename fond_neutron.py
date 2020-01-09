@@ -25,7 +25,7 @@ plt.close('all')
 plt.rcParams['text.usetex']=True
 
 
-stream = 'tg27l000'
+stream = 'tg28l000'
 save_flag = False
 
 # global variables
