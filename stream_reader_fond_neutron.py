@@ -606,5 +606,6 @@ class Root_reader_simu(object):
 
 if __name__ == '__main__':
     
+    # A = Root_reader('tg20l000')
     A = Root_reader_simu('tg20l000', 'Flat_0.0000_2.0000_ER')
 
