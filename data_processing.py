@@ -118,8 +118,9 @@ if __name__ == "__main__":
         df_fine = extract_useful_columns(df)
         
         # min_itemsize reserves enough size for str objects in the df
+        # data_columns=True enables the query on-disk for all columns
         df_fine.to_hdf(fine_data_path, key='df', mode='a', format='table',
-                       append=True, min_itemsize=11)
+                       append=True, min_itemsize=11,  data_columns=True)
         
         progress_bar.update()
         
