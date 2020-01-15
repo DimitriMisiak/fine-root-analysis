@@ -511,7 +511,7 @@ def histogram_ev(stream, df, bins=1000):
         'Heat',
         'Ion B',
         'Ion D',
-        'Bulk',
+        'Ion Bulk',
     ]
     
     ax_tuples = ((0, 0), (0, 1), (1, 0), (1, 1))
@@ -536,7 +536,7 @@ def histogram_ev(stream, df, bins=1000):
         #     bin_edges = custom_bin_edges(xdata_qual, 
         #                                  getattr(noise.sigma0_ev, label))
     
-        bin_edges = np.histogram_bin_edges(xdata[quality_cut], bins=1000)
+        bin_edges = np.histogram_bin_edges(xdata[quality_cut], bins=bins)
     
         ax_hist(ax, bin_edges, xdata,
                 'All events', color='coral')
@@ -547,7 +547,7 @@ def histogram_ev(stream, df, bins=1000):
         ax_hist(ax, bin_edges, xdata_fid,
                 'Fiducial events', color='limegreen')     
             
-        ax.set_xlabel('Enregy [eV]')
+        ax.set_xlabel('Enregy [keV]')
         ax.legend(loc=2)
         ax.set_title(label.replace('_', ' '))
 

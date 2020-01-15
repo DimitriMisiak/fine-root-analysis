@@ -384,9 +384,16 @@ def energy_cut(df, energy_bounds=[0.025, 50]):
     return None
 
 
-
-
-
+def trigger_cut(
+        df,
+        nearest_data_trigger_allowed=5,
+        furthest_simu_trigger_allowed=5
+    ):
+    
+    df['trigger_cut'] = (
+        ( abs(df['t_nearest_data_trigger']) >= nearest_data_trigger_allowed )
+        & ( abs(df['t_input_simu_trigger']) <= furthest_simu_trigger_allowed )
+    )
 
 
 def std_energy_ion(ec):
@@ -426,12 +433,11 @@ def band_cut(df):
     return None
 
 
-
 if __name__ == "__main__":
 
     analysis_dir = '/home/misiak/Analysis/neutron_background'
-    fine_data_path = '/'.join([analysis_dir, 'data_fine.h5'])
-    analysis_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])
+    fine_data_path = '/'.join([analysis_dir, 'simu_fine.h5'])
+    analysis_data_path = '/'.join([analysis_dir, 'simu_analysis.h5'])
 
 
     stream_list = pd.read_hdf(
@@ -458,7 +464,7 @@ if __name__ == "__main__":
         df_analysis = pd.DataFrame()
         for col in df_fine.columns:
             df_analysis[col] = df_fine[col]
-        
+            
         glitch_time_cut(stream, df_analysis)
         heat_chi2_cut(stream, df_analysis)
         ion_chi2_cut(stream, df_analysis)
@@ -471,10 +477,11 @@ if __name__ == "__main__":
         
         virtual_channels(df_analysis)
         fid_cuts(df_analysis)
+        trigger_cut(df_analysis)
         energy_cut(df_analysis)
+        band_cut(df_analysis)
         
         physical_quantities(df_analysis)
-        band_cut(df_analysis)
 
         df_analysis.to_hdf(
             analysis_data_path,

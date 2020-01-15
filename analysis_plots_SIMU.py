@@ -34,24 +34,34 @@ plt.close('all')
 plt.rcParams['text.usetex']=True
 
 analysis_dir = '/home/misiak/Analysis/neutron_background'
-analysis_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])
+analysis_data_path = '/'.join([analysis_dir, 'simu_analysis.h5'])
 
-stream_list = pd.read_hdf(
+aux_df = pd.read_hdf(
     analysis_data_path,
     key='df',
-    columns=['stream',]
-)['stream'].unique()    
+    columns=['stream', 'simulation']
+)
+stream_list = aux_df['stream'].unique()    
+simulation_list = aux_df['simulation'].unique()   
+
+config_list = list()
+for stream in stream_list:
+    for simu in simulation_list:
+        config_list.append( [stream, simu] )
 
 from tqdm import tqdm
-for stream in tqdm(stream_list):
+for config in tqdm(config_list):
 # if True:
-    # stream = 'tg28l000'
+#     config = ['tg28l000', 'line_10keV']    
+    
+    stream, simulation = config
+    
     plt.close('all')
     
     df_analysis = pd.read_hdf(
         analysis_data_path,
         key='df',
-        where='stream = "{}"'.format(stream)
+        where='stream = "{}" & simulation = "{}"'.format(stream, simulation)
     )
     
     source = df_analysis['source'].unique()[0]    
@@ -168,12 +178,50 @@ for stream in tqdm(stream_list):
     ax.set_xlabel('Heat Energy [keV]')
     fig_10kev.tight_layout()
 
+    # trigger cut (specific to simulation)
+    trigger_cut = df_analysis['trigger_cut']
+    fig_trigger, axes = plt.subplots(nrows=2, sharex=True)
+    axes[0].plot(
+        df_analysis['timestamp'],
+        df_analysis['t_input_simu_trigger'],
+        label='all simu',
+        ls='none', marker='.', markersize=3
+    )
+    axes[0].plot(
+        df_analysis[trigger_cut]['timestamp'],
+        df_analysis[trigger_cut]['t_input_simu_trigger'],
+        label='trig simu',
+        ls='none', marker='.', color='k'
+    )
+    axes[0].axhspan(-5, 5, color='limegreen')
+    axes[1].plot(
+            df_analysis['timestamp'],
+            df_analysis['t_nearest_data_trigger'],
+            label='all simu',
+            ls='none', marker='.', markersize=3
+    )
+    axes[1].plot(
+            df_analysis[trigger_cut]['timestamp'],
+            df_analysis[trigger_cut]['t_nearest_data_trigger'],
+            label='trig simu',
+            ls='none', marker='.', color='k'
+    )
+    axes[1].axhspan(-5, 5, color='coral')
+    axes[0].set_ylabel(r'$\Delta T_{simu}$')
+    axes[1].set_ylabel(r'$\Delta T_{data}$')
+    axes[1].set_xlabel('Time [hours]')
+    axes[0].legend()
+    axes[1].legend()
+    fig_trigger.tight_layout()
+    fig_trigger.subplots_adjust(hspace=.0)
+
 
     # saving all the figures
     save_dir = '/'.join([
         analysis_dir,
         'analysis_plots',
-        stream
+        stream,
+        simulation
     ])
     os.makedirs(save_dir, exist_ok=True)
     save_flag = True
@@ -187,3 +235,4 @@ for stream in tqdm(stream_list):
         fig_ion.savefig(save_dir+'/fig_ion.png')
         fig_virtual.savefig(save_dir+'/fig_virtual.png')
         fig_10kev.savefig(save_dir+'/fig_10kev.png')
+        fig_trigger.savefig(save_dir+'/fig_trigger.png')
