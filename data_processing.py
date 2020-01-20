@@ -10,7 +10,7 @@ Created on Thu Jan  9 14:55:53 2020
 import pandas as pd
 
 
-def extract_useful_columns(df):
+def extract_useful_columns_for_data(df):
     """
     Return a Dataframe with much less, but useful informations.
     Also, the name of the columns is now clearer.
@@ -77,6 +77,11 @@ def extract_useful_columns(df):
         'energy_adu_ionB': 'Energy_OF[3]_filt_decor',
         'energy_adu_ionC': 'Energy_OF[4]_filt_decor',
         'energy_adu_ionD': 'Energy_OF[5]_filt_decor',
+        'energy_adu_nodecor_heat': 'Energy_OF[0]_filt',
+        'energy_adu_nodecor_ionA': 'Energy_OF[2]_filt',
+        'energy_adu_nodecor_ionB': 'Energy_OF[3]_filt',
+        'energy_adu_nodecor_ionC': 'Energy_OF[4]_filt',
+        'energy_adu_nodecor_ionD': 'Energy_OF[5]_filt',        
     }
 
     # merging the previous directories together
@@ -92,21 +97,40 @@ def extract_useful_columns(df):
 
     return df_fine
 
-if __name__ == "__main__":
 
-    analysis_dir = '/home/misiak/Analysis/neutron_background'
-    raw_data_path =  '/'.join([analysis_dir, 'data.h5'])
-    fine_data_path = '/'.join([analysis_dir, 'data_fine.h5'])
+def extract_useful_columns_for_simulation(df):
+    """
+    Same as the previous function, but with additional extracted columns
+    for the pulse simulation.
+    """
+    
+    df_fine = extract_useful_columns_for_data(df)
+    
+    df_fine['simulation'] = df['simulation']
+    
+    simu_key_dict = {
+        't_input_simu_trigger': 'deltaT_simu_datasimu',
+        't_nearest_data_trigger': 'deltaT_simu_data',
+        'input_energy': 'Energy_In'
+    }
+
+    for col, key in simu_key_dict.items():
+        df_fine[col] = df[key]
+
+    return df_fine
+
+
+def hdf5_processing(raw_hdf5_path, output_hdf5_path, extract_function):
 
     # reading the *large* raw DataFrame chunk by chunk
     df_iterator = pd.read_hdf(
-        raw_data_path,
-        key='data',
+        raw_hdf5_path,
+        key='df', #change to df later
         chunksize=50000
     )
 
     # initializing the HDFstore (overwriting, be careful !)
-    pd.DataFrame().to_hdf(fine_data_path, key='df', mode='w', format='table')
+    pd.DataFrame().to_hdf(output_hdf5_path, key='df', mode='w', format='table')
 
     # tqdm to follow the progression
     from tqdm import tqdm
@@ -115,27 +139,40 @@ if __name__ == "__main__":
 
     for df in df_iterator:
         
-        df_fine = extract_useful_columns(df)
+        df_fine = extract_function(df)
         
         # min_itemsize reserves enough size for str objects in the df
         # data_columns=True enables the query on-disk for all columns
-        df_fine.to_hdf(fine_data_path, key='df', mode='a', format='table',
+        df_fine.to_hdf(output_hdf5_path, key='df', mode='a', format='table',
                        append=True, min_itemsize=11,  data_columns=True)
         
         progress_bar.update()
         
-    progress_bar.close()
-    
-    
-# =============================================================================
-# DEBUG
-# =============================================================================
-# df = pd.read_hdf(
-#     h5_path,
-#     key='data',
-#     start=0,
-#     stop=50000
-# )
-# df_fine = extract_useful_columns(df)
-# print(df_fine.columns)
+    progress_bar.close()    
+
+
+
+if __name__ == "__main__":
+
+    analysis_dir = '/home/misiak/Analysis/neutron_background'
+        
+    raw_data_path =  '/'.join([analysis_dir, 'data.h5'])
+    output_data_path = '/'.join([analysis_dir, 'data_fine.h5'])
+
+    # processing the experimental data
+    hdf5_processing(
+        raw_data_path,
+        output_data_path,
+        extract_useful_columns_for_data
+    )
+
+    raw_simu_path =  '/'.join([analysis_dir, 'simu.h5'])
+    output_simu_path = '/'.join([analysis_dir, 'simu_fine.h5'])
+  
+    # processinf the pulse simulation
+    hdf5_processing(
+        raw_simu_path,
+        output_simu_path,
+        extract_useful_columns_for_simulation
+    )
     

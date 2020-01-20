@@ -8,7 +8,7 @@ Created on Thu Jan  9 14:55:53 2020
 
 import numpy as np
 import pandas as pd
-
+from tqdm import tqdm
 
 analysis_parameters = {
     "tg18l005": {
@@ -20,14 +20,16 @@ analysis_parameters = {
     },
     "tg27l000": {
     	"glitch_time_cut": [ 
-            [7, 11.3]
+            [7, 11.3],
+            [13.8, 14.1]
         ],
         "heat_chi2_threshold": 700,
         "position_10kev_line_heat": 1293,
     },
     "tg28l000": {
     	"glitch_time_cut": [ 
-            [7.4, 8.05]
+            [7.4, 8.05],
+            [10, np.inf]
         ],
         "heat_chi2_threshold": 700,
         "position_10kev_line_heat": 1291,
@@ -38,7 +40,9 @@ analysis_parameters = {
         "position_10kev_line_heat": 1165,
     },
     "tg19l010": {
-    	"glitch_time_cut": [],
+    	"glitch_time_cut": [
+            [8.3, 8.7]    
+        ],
         "heat_chi2_threshold": 400,
         "position_10kev_line_heat": 1199,
     },
@@ -83,7 +87,7 @@ def glitch_time_cut(stream, df):
         
         timestamp = df['timestamp']
         
-        truth_array = pd.Series(data=True, index=df_fine.index)
+        truth_array = pd.Series(data=True, index=df.index)
         for inf, sup in glitch_interval_list:
             
             interval_truth = (timestamp < inf) | (timestamp > sup)
@@ -126,7 +130,7 @@ def ion_chi2_cut(stream, df):
     """
     ion_chi2_threshold = analysis_parameters['ion_chi2_threshold']
     
-    truth_array = pd.Series(data=True, index=df_fine.index)
+    truth_array = pd.Series(data=True, index=df.index)
     for suffix in ion_channel_labels:
         chi2_column_name = 'chi2_ion{}'.format(suffix)
         chi2_ion = df[chi2_column_name]
@@ -155,7 +159,7 @@ def offset_ion_cut(df):
 
     offset_threshold = analysis_parameters['offset_ion_threshold']
     
-    truth_array = pd.Series(data=True, index=df_fine.index)
+    truth_array = pd.Series(data=True, index=df.index)
     for suffix in ion_channel_labels:
         offset_column_name = 'offset_ion{}'.format(suffix)
         offset = abs( df[offset_column_name] )
@@ -292,7 +296,6 @@ def quenching(ec, ei, V):
     er = energy_recoil(ec, ei, V)
     return ei/er
 
-
 def lindhard(er):
     
     A = 72.63
@@ -305,6 +308,12 @@ def lindhard(er):
     Q = k*g/(1+k*g)
     
     return Q
+
+def energy_heat_from_er_and_quenching(er, Q, V): 
+    return er * (1 + Q*V/3) / (1 + V/3)
+
+def energy_ion_from_er_and_quenching(er, Q, V=None): 
+    return er * Q
 
 
 def physical_quantities(df, voltage=2):
@@ -331,29 +340,33 @@ def physical_quantities(df, voltage=2):
 
     return None
 
-    
+
+def guard_threshold_for_bulk_cut(energy_ion):
+    std_noise_blob_fid = 1
+    std_10kev_fid = 1.5
+    alpha_fid = (std_10kev_fid**2 - std_noise_blob_fid**2)**0.5 / 10.37    
+    return (std_noise_blob_fid**2 + (alpha_fid*energy_ion)**2)**0.5
+
+
+def bulk_threshold_for_guard_cut(energy_ion):
+    std_noise_blob_fid = 1
+    std_10kev_fid = 1.5
+    alpha_fid = (std_10kev_fid**2 - std_noise_blob_fid**2)**0.5 / 10.37    
+    return (std_noise_blob_fid**2 + (alpha_fid*energy_ion)**2)**0.5
+
+
 def fid_cuts(df):
     """ 
     Apply the so-called FID cuts, which is a way to discriminate events
     happening in the bulk (or in the guard) region from the others.
     Create new columns with the truth array for the bulk and guard events.
     """    
-    std_noise_blob_fid = 1
-    
-    std_10kev_fid = 1.5
-    
-    alpha_fid = (std_10kev_fid**2 - std_noise_blob_fid**2)**0.5 / 10.37
-    
     energy_ion_collect = df['energy_ion_bulk']
     energy_ion_guard = df['energy_ion_guard']
     
-    collect_energy_threshold = (
-        (std_noise_blob_fid**2 + (alpha_fid*energy_ion_collect)**2)**0.5
-    )
+    collect_energy_threshold = guard_threshold_for_bulk_cut(energy_ion_collect)
 
-    guard_energy_threshold = (
-        (std_noise_blob_fid**2 + (alpha_fid*energy_ion_guard)**2)**0.5
-    )
+    guard_energy_threshold = bulk_threshold_for_guard_cut(energy_ion_guard)
     
     df['bulk_cut'] = (
         ( abs(df['energy_ionA']) < collect_energy_threshold )
@@ -384,9 +397,16 @@ def energy_cut(df, energy_bounds=[0.025, 50]):
     return None
 
 
-
-
-
+def trigger_cut(
+        df,
+        nearest_data_trigger_allowed=5,
+        furthest_simu_trigger_allowed=5
+    ):
+    
+    df['trigger_cut'] = (
+        ( abs(df['t_nearest_data_trigger']) > nearest_data_trigger_allowed )
+        & ( abs(df['t_input_simu_trigger']) < furthest_simu_trigger_allowed )
+    )
 
 
 def std_energy_ion(ec):
@@ -426,58 +446,91 @@ def band_cut(df):
     return None
 
 
+def analysis_data(stream, df_fine):
+    """
+    Use with experimental data.
+    Create an analysed dataframe from the given fine dataframe.
+    """
+    df_analysis = pd.DataFrame()
+    for col in df_fine.columns:
+        df_analysis[col] = df_fine[col]
+    
+    glitch_time_cut(stream, df_analysis)
+    heat_chi2_cut(stream, df_analysis)
+    ion_chi2_cut(stream, df_analysis)
+    offset_ion_cut(df_analysis)
+    quality_cut(df_analysis)
+    
+    crosstalk_correction(df_analysis)
+    calibration_heat(stream, df_analysis)
+    calibration_ion(stream, df_analysis)
+    
+    virtual_channels(df_analysis)
+    fid_cuts(df_analysis)
+    energy_cut(df_analysis)
+    
+    physical_quantities(df_analysis)
+    band_cut(df_analysis)
+    
+    return df_analysis
 
-if __name__ == "__main__":
 
-    analysis_dir = '/home/misiak/Analysis/neutron_background'
-    fine_data_path = '/'.join([analysis_dir, 'data_fine.h5'])
-    analysis_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])
+def analysis_simulation(stream, df_fine):
+    """
+    Use with pulse simulation.
+    Create an analysed dataframe from the given fine dataframe.
+    """
+    df_analysis = pd.DataFrame()
+    for col in df_fine.columns:
+        df_analysis[col] = df_fine[col]
+        
+    glitch_time_cut(stream, df_analysis)
+    heat_chi2_cut(stream, df_analysis)
+    ion_chi2_cut(stream, df_analysis)
+    offset_ion_cut(df_analysis)
+    quality_cut(df_analysis)
+    
+    crosstalk_correction(df_analysis)
+    calibration_heat(stream, df_analysis)
+    calibration_ion(stream, df_analysis)
+    
+    virtual_channels(df_analysis)
+    fid_cuts(df_analysis)
+    trigger_cut(df_analysis)
+    energy_cut(df_analysis)
+    band_cut(df_analysis)
+    
+    physical_quantities(df_analysis)
+    
+    return df_analysis
 
+
+def hdf5_analysis(fine_hdf5_path, output_hdf5_path, analysis_function):
 
     stream_list = pd.read_hdf(
-        fine_data_path,
+        fine_hdf5_path,
         key='df',
         columns=['stream',]
     )['stream'].unique()
     
     # initializing the HDFstore (overwriting, be careful !)
     pd.DataFrame().to_hdf(
-        analysis_data_path,
+        output_hdf5_path,
         key='df', mode='w', format='table'
     )
     
-    from tqdm import tqdm
     for stream in tqdm(stream_list):
 
         df_fine = pd.read_hdf(
-            fine_data_path,
+            fine_hdf5_path,
             key='df',
             where='stream = "{}"'.format(stream)
         )
         
-        df_analysis = pd.DataFrame()
-        for col in df_fine.columns:
-            df_analysis[col] = df_fine[col]
-        
-        glitch_time_cut(stream, df_analysis)
-        heat_chi2_cut(stream, df_analysis)
-        ion_chi2_cut(stream, df_analysis)
-        offset_ion_cut(df_analysis)
-        quality_cut(df_analysis)
-        
-        crosstalk_correction(df_analysis)
-        calibration_heat(stream, df_analysis)
-        calibration_ion(stream, df_analysis)
-        
-        virtual_channels(df_analysis)
-        fid_cuts(df_analysis)
-        energy_cut(df_analysis)
-        
-        physical_quantities(df_analysis)
-        band_cut(df_analysis)
+        df_analysis = analysis_function(stream, df_fine)
 
         df_analysis.to_hdf(
-            analysis_data_path,
+            output_hdf5_path,
             key='df',
             mode='a',
             format='table',
@@ -485,3 +538,28 @@ if __name__ == "__main__":
             min_itemsize=11,
             data_columns=True
         ) 
+
+    return None
+    
+
+if __name__ == "__main__":
+
+    analysis_dir = '/home/misiak/Analysis/neutron_background'
+    
+    fine_data_path = '/'.join([analysis_dir, 'data_fine.h5'])
+    output_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])   
+    
+    hdf5_analysis(
+        fine_data_path,
+        output_data_path,
+        analysis_data
+    )
+    
+    fine_simu_path = '/'.join([analysis_dir, 'simu_fine.h5'])
+    output_simu_path = '/'.join([analysis_dir, 'simu_analysis.h5'])
+    hdf5_analysis(
+        fine_simu_path,
+        output_simu_path,
+        analysis_simulation
+    )
+    

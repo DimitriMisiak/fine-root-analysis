@@ -7,7 +7,6 @@ Created on Tue Jan 14 12:04:43 2020
 """
 
 import os
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -18,172 +17,319 @@ from representation_functions import (
     histogram_adu,
     histogram_ev,
     ion_vs_ion,
-    virtual_vs_virtual_ev
-)
-
-from plot_addon import basic_corner
-
-from data_analysis import (
-    analysis_parameters,
-    heat_chi2_threshold_function,
-    ion_chi2_threshold_function,
+    virtual_vs_virtual_ev,
+    crosstalk_correction,
+    trigger_cut_plot,
+    plot_10kev,
+    fid_cut_plot,
+    band_cut_plots
 )
 
 
-plt.close('all')
-plt.rcParams['text.usetex']=True
+def save_figure_dict(fig_dict, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    for key, fig in fig_dict.items():
+        fig.savefig( output_dir + '/{}.png'.format(key) )
 
-analysis_dir = '/home/misiak/Analysis/neutron_background'
-analysis_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])
 
-stream_list = pd.read_hdf(
-    analysis_data_path,
-    key='df',
-    columns=['stream',]
-)['stream'].unique()    
-
-from tqdm import tqdm
-for stream in tqdm(stream_list):
-# if True:
-    # stream = 'tg28l000'
-    plt.close('all')
+def precalibration_plots(
+        stream,
+        title,
+        df_analysis
+    ):
     
-    df_analysis = pd.read_hdf(
-        analysis_data_path,
-        key='df',
-        where='stream = "{}"'.format(stream)
-    )
+    fig_dict = dict()
     
-    source = df_analysis['source'].unique()[0]    
+    ### temporal multi
+    fig_temp = temporal_plot(title, df_analysis)
+    fig_dict['temporal_multi'] = fig_temp
     
-    ### monitoring
-    fig_temp = temporal_plot(stream, df_analysis)
-    fig_temp_heat = temporal_plot_heat_only(stream, df_analysis)
+    ### temporal heat
+    fig_temp_heat = temporal_plot_heat_only(title, df_analysis)
+    fig_dict['temporal_heat'] = fig_temp_heat
     
     ### chi2 plot
-    fig_chi2 = plot_chi2_vs_energy(stream, df_analysis)
-    # plotting the quality cuts
-    x_data = 10**np.linspace(-2, 5, int(1e4))
-    cut_ion = ion_chi2_threshold_function(
-        analysis_parameters['ion_chi2_threshold'],
-        x_data
-    )
-    cut_heat = heat_chi2_threshold_function(
-        analysis_parameters[stream]['heat_chi2_threshold'],
-        x_data)    
-    for i, ax in enumerate(fig_chi2.get_axes()):
-        if i == 2:
-            ax.plot(x_data, cut_heat, lw=1, color='k', label='quality cut')
-        else:
-            ax.plot(x_data, cut_ion, lw=1, color='k', label='quality cut')
-        ax.set_xlim(10**-2, 10**5)
-        ax.set_ylim(10**1, 10**9)
-        ax.legend()            
+    fig_chi2 = plot_chi2_vs_energy(title, df_analysis, stream)
+    fig_dict['chi2_plot'] = fig_chi2
 
     ### histogramm ADU
-    fig_hist_trig = histogram_adu(stream, df_analysis, bins=10000)
-    # resize the plots
-    fig_hist_trig.get_axes()[0].set_xlim(-200, 2000)
-    for i, ax in enumerate(fig_hist_trig.get_axes()[:5]):
-        if i==0:
-            ax.set_xlim(-200, 2000)
-        else:
-            ax.set_xlim(-70, 70)    
+    fig_hist_trig = histogram_adu(title, df_analysis, bins=10000)
+    fig_dict['histogramm_ADU'] = fig_hist_trig
 
     ### crosstalk correction
-    samples = df_analysis[df_analysis.quality_cut][[
-        'energy_adu_ionA',
-        'energy_adu_ionB',
-        'energy_adu_ionC',
-        'energy_adu_ionD',
-    ]]
-    samples_corr = df_analysis[df_analysis.quality_cut][[
-        'energy_adu_corr_ionA',
-        'energy_adu_corr_ionB',
-        'energy_adu_corr_ionC',
-        'energy_adu_corr_ionD',
-    ]]
-    fig_cross, axes = basic_corner(
-        samples.values,
-        samples.columns,
-        num = '{} ({}): Cross-talk Correction'.format(stream, source),
-        label='raw',
-        alpha=0.1,
-    )
-    basic_corner(
-        samples_corr.values,
-        samples_corr.columns,
-        axes=axes,
-        color='slateblue',
-        zorder=-1,
-        label='corrected'
-    )
-    for ax in fig_cross.get_axes():
-        ax.axvline(0, color='r', zorder=-5)
-        ax.axhline(0, color='r', zorder=-5)
+    fig_cross = crosstalk_correction(title, df_analysis)
+    fig_dict['crosstalk_correction'] = fig_cross
 
-    ### histogramm kev
-    fig_hist_trig_ev = histogram_ev(stream, df_analysis, bins=10000)
-    for ax in fig_hist_trig_ev.get_axes():
-        ax.set_xlim(-2.5, 15)
+    return fig_dict
+
+
+def simu_only_plots(
+        title,
+        df_analysis
+    ):
+    
+    fig_dict = {
+        'trigger_cut': trigger_cut_plot(title, df_analysis)
+    }
+
+    return fig_dict
+    
+
+def postcalibration_plots(
+        title,
+        df_analysis
+    ):
+    
+    fig_dict = dict()
+    
+    ### histogramm ev
+    fig_hist_trig_ev = histogram_ev(title, df_analysis, bins=10000)
+    fig_dict['histogramm_ev'] = fig_hist_trig_ev
     
     ### ion vs ion
-    fig_ion = ion_vs_ion(stream, df_analysis)
-    axes = fig_ion.get_axes()
-    for ax in axes:
-        ax.set_xlim(-15, 15)
-        ax.set_ylim(-15, 15)
+    fig_ion = ion_vs_ion(title, df_analysis)
+    fig_dict['ion_vs_ion'] = fig_ion
     
     ### ion vs ion virtual
-    fig_virtual = virtual_vs_virtual_ev(stream, df_analysis)
-    for ax in fig_virtual.get_axes():
-        ax.set_xlim(-15, 15)
-        ax.set_ylim(-15, 15)
+    fig_virtual = virtual_vs_virtual_ev(title, df_analysis)
+    fig_dict['ion_vs_ion_virtual'] = fig_virtual
     
     ### 10kev plot
-    delta_volt = 2 #V
-    quality_cut = df_analysis['quality_cut']
-    fig_10kev, ax = plt.subplots(num='Tot Ion vs Heat', figsize=(10, 7))
-    ax.set_title('{} ({}): 10keV events'.format(stream, source))
-    ax.plot(
-        df_analysis[quality_cut]['energy_heat'],
-        df_analysis[quality_cut]['energy_ion_total'],
-        label='quality events',
-        ls='none',
-        marker='.',
-        color='b',
-        alpha=0.3
-    )
-    #guide for 10keV
-    ax.plot(
-        [10.37/(1+delta_volt/3), 10.37],
-        [0, 10.37], 
-        zorder=-20, lw=10,
-        color='gold', label='10keV band (theory)'
-    )
-    ax.grid()
-    ax.set_xlim(-2, 13)
-    ax.set_ylim(-2, 13)
-    ax.set_ylabel('Total Ionization Energy A+B+C+D [keV]')
-    ax.set_xlabel('Heat Energy [keV]')
-    fig_10kev.tight_layout()
+    fig_10kev = plot_10kev(title, df_analysis)
+    fig_dict['plot_10kev'] = fig_10kev
 
+    ### plot fig cut
+    fig_fid = fid_cut_plot(title, df_analysis)
+    fig_dict['fid_cut'] = fig_fid
+
+    ### plot band cut
+    fig_ecei, fig_quenching = band_cut_plots(title, df_analysis)
+    fig_dict['band_cut_ecei'] = fig_ecei
+    fig_dict['band_cut_quenching'] = fig_quenching
+    
+    return fig_dict
+
+
+def plotting_data_stream(
+        stream,
+        hdf5_path,
+        output_dir,
+        save_flag=False
+    ):
 
     # saving all the figures
     save_dir = '/'.join([
-        analysis_dir,
-        'analysis_plots',
-        stream
+        output_dir,
+        stream, 
     ])
-    os.makedirs(save_dir, exist_ok=True)
-    save_flag = True
+    
+    df_analysis = pd.read_hdf(
+        hdf5_path,
+        key='df',
+        where=(
+            'stream = "{0}"'
+        ).format(stream)
+    )
+
+    source = df_analysis['source'].unique()[0]
+
+    title = '{0} {1} {2}'.format(stream, 'data', source).replace('_', ' ')
+
+    fig_dict = {
+        **precalibration_plots(stream, title, df_analysis),
+        **postcalibration_plots(title, df_analysis)
+    }
+    
     if save_flag:
-        fig_temp.savefig(save_dir+'/fig_temp.png')
-        fig_temp_heat.savefig(save_dir+'/fig_heat.png')
-        fig_chi2.savefig(save_dir+'/fig_chi2_trig.png')
-        fig_hist_trig.savefig(save_dir+'/fig_hist_trig.png')
-        fig_hist_trig_ev.savefig(save_dir+'/fig_hist_trig_ev.png')
-        fig_cross.savefig(save_dir+'/fig_cross.png')
-        fig_ion.savefig(save_dir+'/fig_ion.png')
-        fig_virtual.savefig(save_dir+'/fig_virtual.png')
-        fig_10kev.savefig(save_dir+'/fig_10kev.png')
+        save_figure_dict(fig_dict, save_dir)
+        
+    return fig_dict
+
+
+def plotting_simu_stream(
+        stream,
+        simulation,
+        hdf5_path,
+        output_dir,
+        save_flag=False
+    ):
+
+    # saving all the figures
+    save_dir = '/'.join([
+        output_dir,
+        stream,
+        simulation
+    ])
+    
+    df_analysis = pd.read_hdf(
+        hdf5_path,
+        key='df',
+        where=(
+            'stream = "{0}"'
+            '& simulation = "{1}"'
+        ).format(stream, simulation)
+    )
+
+    source = df_analysis['source'].unique()[0]
+
+    title = '{0} {1} {2}'.format(stream, simulation, source).replace('_', ' ')
+
+    fig_dict = {
+        **precalibration_plots(stream, title, df_analysis),
+        **simu_only_plots(title, df_analysis),
+        **postcalibration_plots(title, df_analysis),
+    }
+    
+    if save_flag:
+        save_figure_dict(fig_dict, save_dir)
+        
+    return fig_dict
+
+
+def plotting_data_source(
+        source,
+        hdf5_path,
+        output_dir,
+        save_flag=False
+    ):
+
+    # saving all the figures
+    save_dir = '/'.join([
+        output_dir,
+        source, 
+    ])
+    
+    df_analysis = pd.read_hdf(
+        hdf5_path,
+        key='df',
+        where=(
+            'source = "{0}"'
+        ).format(source)
+    )
+
+    title = '{0} {1} {2}'.format('All streams', 'Data', source).replace('_', ' ')
+
+    fig_dict = {
+        **postcalibration_plots(title, df_analysis)
+    }
+    
+    if save_flag:
+        save_figure_dict(fig_dict, save_dir)
+        
+    return fig_dict
+
+
+def plotting_simu_source(
+        source,
+        simulation,
+        hdf5_path,
+        output_dir,
+        save_flag=False
+    ):
+
+    # saving all the figures
+    save_dir = '/'.join([
+        output_dir,
+        source,
+        simulation
+    ])
+    
+    df_analysis = pd.read_hdf(
+        hdf5_path,
+        key='df',
+        where=(
+            'source = "{0}"'
+            '& simulation = "{1}"'
+        ).format(source, simulation)
+    )
+
+    source = df_analysis['source'].unique()[0]
+
+    title = '{0} {1} {2}'.format("All streams", simulation, source).replace('_', ' ')
+
+    fig_dict = {
+        **simu_only_plots(title, df_analysis),
+        **postcalibration_plots(title, df_analysis),
+    }
+    
+    if save_flag:
+        save_figure_dict(fig_dict, save_dir)
+        
+    return fig_dict
+
+
+if __name__ == "__main__":
+
+    plt.close('all')
+    from tqdm import tqdm
+    
+    analysis_dir = '/home/misiak/Analysis/neutron_background'
+    output_plot_dir = '/'.join([analysis_dir, 'analysis_plots'])
+    
+    analysis_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])
+    analysis_simu_path = '/'.join([analysis_dir, 'simu_analysis.h5'])
+    
+    stream_list = [
+        'tg18l005',
+        'tg27l000',
+        'tg28l000',
+        'tg17l007',
+        'tg19l010',
+        'tg20l000',
+        'tg21l000'
+    ]
+
+    source_list = ['Calibration', 'Background']
+    
+    simulation_list = [
+        'flat_ER',
+        'flat_NR',
+        'line_1keV',
+        'line_10keV',
+    ]
+
+
+    for stream in tqdm(stream_list):
+        plotting_data_stream(
+            stream,
+            analysis_data_path,
+            output_plot_dir,
+            save_flag=True
+        )
+        plt.close('all')
+    print('Stream Data done.')
+
+    for source in tqdm(source_list):
+        plotting_data_source(
+            source,
+            analysis_data_path,
+            output_plot_dir,
+            save_flag=True
+        )
+        plt.close('all')
+    print('Source Data done.')
+
+    for stream in tqdm(stream_list):
+        for simulation in simulation_list:
+            plotting_simu_stream(
+                stream,
+                simulation,
+                analysis_simu_path,
+                output_plot_dir,
+                save_flag=True
+            )
+            plt.close('all')
+    print('Stream Simulation done.')
+ 
+    for source in tqdm(source_list):
+        for simulation in simulation_list:
+            plotting_simu_source(
+                source,
+                simulation,
+                analysis_simu_path,
+                output_plot_dir,
+                save_flag=True
+            )
+            plt.close('all')
+    print('Source Simulation done.')
+        
