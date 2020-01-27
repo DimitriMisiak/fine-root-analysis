@@ -22,7 +22,10 @@ from representation_functions import (
     trigger_cut_plot,
     plot_10kev,
     fid_cut_plot,
-    band_cut_plots
+    band_cut_plots,
+    ## nodecor
+    nodecor_crosstalk_correction,
+    charge_conservation,
 )
 
 
@@ -59,6 +62,11 @@ def precalibration_plots(
     ### crosstalk correction
     fig_cross = crosstalk_correction(title, df_analysis)
     fig_dict['crosstalk_correction'] = fig_cross
+
+    ## nodecor
+    ### crosstalk correction
+    fig_cross_nodecor = nodecor_crosstalk_correction(title, df_analysis)
+    fig_dict['nodecor_crosstalk_correction'] = fig_cross_nodecor
 
     return fig_dict
 
@@ -106,6 +114,10 @@ def postcalibration_plots(
     fig_ecei, fig_quenching = band_cut_plots(title, df_analysis)
     fig_dict['band_cut_ecei'] = fig_ecei
     fig_dict['band_cut_quenching'] = fig_quenching
+    
+    ### plot charge conservation
+    fig_charge = charge_conservation(title, df_analysis)
+    fig_dict['charge_conservation'] = fig_charge
     
     return fig_dict
 
@@ -288,48 +300,60 @@ if __name__ == "__main__":
         'line_10keV',
     ]
 
+    # plotting_data_stream(
+    #     'tg28l000',
+    #     analysis_data_path,
+    #     output_plot_dir,
+    #     save_flag=False
+    # )
 
-    for stream in tqdm(stream_list):
-        plotting_data_stream(
-            stream,
-            analysis_data_path,
-            output_plot_dir,
-            save_flag=True
-        )
-        plt.close('all')
-    print('Stream Data done.')
+    plotting_data_source(
+        'Background',
+        analysis_data_path,
+        output_plot_dir,
+        save_flag=True
+    )
+    # for stream in tqdm(stream_list):
+    #     plotting_data_stream(
+    #         stream,
+    #         analysis_data_path,
+    #         output_plot_dir,
+    #         save_flag=True
+    #     )
+    #     plt.close('all')
+    # print('Stream Data done.')
 
-    for source in tqdm(source_list):
-        plotting_data_source(
-            source,
-            analysis_data_path,
-            output_plot_dir,
-            save_flag=True
-        )
-        plt.close('all')
-    print('Source Data done.')
+    # for source in tqdm(source_list):
+    #     plotting_data_source(
+    #         source,
+    #         analysis_data_path,
+    #         output_plot_dir,
+    #         save_flag=True
+    #     )
+    #     plt.close('all')
+    # print('Source Data done.')
 
-    for stream in tqdm(stream_list):
-        for simulation in simulation_list:
-            plotting_simu_stream(
-                stream,
-                simulation,
-                analysis_simu_path,
-                output_plot_dir,
-                save_flag=True
-            )
-            plt.close('all')
-    print('Stream Simulation done.')
+    # for stream in tqdm(stream_list):
+    #     for simulation in simulation_list:
+    #         plotting_simu_stream(
+    #             stream,
+    #             simulation,
+    #             analysis_simu_path,
+    #             output_plot_dir,
+    #             save_flag=True
+    #         )
+    #         plt.close('all')
+    # print('Stream Simulation done.')
  
-    for source in tqdm(source_list):
-        for simulation in simulation_list:
-            plotting_simu_source(
-                source,
-                simulation,
-                analysis_simu_path,
-                output_plot_dir,
-                save_flag=True
-            )
-            plt.close('all')
-    print('Source Simulation done.')
+    # for source in tqdm(source_list):
+    #     for simulation in simulation_list:
+    #         plotting_simu_source(
+    #             source,
+    #             simulation,
+    #             analysis_simu_path,
+    #             output_plot_dir,
+    #             save_flag=True
+    #         )
+    #         plt.close('all')
+    # print('Source Simulation done.')
         

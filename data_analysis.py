@@ -73,6 +73,13 @@ crosstalk_correction_matrix = np.array([
         [0, 0, -0.03, 1]
 ])
 
+nodecor_crosstalk_correction_matrix = np.array([
+        [1, -0.044, 0, 0],
+        [-0.03, 1, 0, 0],
+        [-0.025, 0.001, 1, -0.031],
+        [0, 0, -0.03, 1]
+])
+
 
 def glitch_time_cut(stream, df):
     """ 
@@ -219,6 +226,32 @@ def crosstalk_correction(df):
     return None
 
 
+def nodecor_crosstalk_correction(df):
+    """ 
+    Create new columns for the cross-talk corrected ionization channels.
+    """        
+    
+    ion_energy = df[[
+        'energy_adu_nodecor_ionA',
+        'energy_adu_nodecor_ionB',
+        'energy_adu_nodecor_ionC',
+        'energy_adu_nodecor_ionD'
+    ]]
+    
+    
+    corr_ion_energy = np.dot(nodecor_crosstalk_correction_matrix, ion_energy.T)
+    energy_corr_cname_list = [
+        'energy_adu_corr_nodecor_ionA',
+        'energy_adu_corr_nodecor_ionB',
+        'energy_adu_corr_nodecor_ionC',
+        'energy_adu_corr_nodecor_ionD'
+    ]
+    for i, col in enumerate(energy_corr_cname_list):
+        df[col] = corr_ion_energy[i]
+    
+    return None
+
+
 def calibration_heat(stream, df):
     """ 
     Create a new column for the calibrated energy of heat channel.
@@ -243,6 +276,27 @@ def calibration_ion(stream, df):
         position_cname = 'position_10kev_line_ion{}'.format(suffix)
         energy_adu_cname ='energy_adu_corr_ion{}'.format(suffix)
         energy_cname = 'energy_ion{}'.format(suffix)
+        
+        calibration_factor = (
+            10.37 / analysis_parameters[position_cname]
+        )
+        
+        df[energy_cname] = (
+            df[energy_adu_cname] * calibration_factor
+        )
+        
+    return None
+
+
+def nodecor_calibration_ion(stream, df):
+    """ 
+    Create new columns for the calibrated energy of the ionization channels.
+    """         
+    for suffix in ion_channel_labels:
+        
+        position_cname = 'position_10kev_line_ion{}'.format(suffix)
+        energy_adu_cname ='energy_adu_corr_nodecor_ion{}'.format(suffix)
+        energy_cname = 'energy_nodecor_ion{}'.format(suffix)
         
         calibration_factor = (
             10.37 / analysis_parameters[position_cname]
@@ -281,6 +335,37 @@ def virtual_channels(df):
     df['energy_ion_conservation'] = (
         - df['energy_ionA'] - df['energy_ionB']
         + df['energy_ionC'] + df['energy_ionD']
+    ) / 2
+
+    return None
+
+
+def nodecor_virtual_channels(df):
+    """ 
+    Create new columns for "virtual channels" which are combinations
+    of the ionization channels:
+        - energy_nodecor_ion_total: A+B+C+D
+        - energy_nodecor_ion_collect: B+D
+        - energy_nodecor_ion_guard: A+C
+    """    
+
+    df['energy_nodecor_ion_total'] = (
+        df['energy_nodecor_ionA'] + df['energy_nodecor_ionB']
+        + df['energy_nodecor_ionC'] + df['energy_nodecor_ionD']
+    ) / 2
+    
+    df['energy_nodecor_ion_bulk'] = (
+        df['energy_nodecor_ionB'] + df['energy_nodecor_ionD']
+    ) / 2
+    
+    df['energy_nodecor_ion_guard'] = (
+        df['energy_nodecor_ionA'] + df['energy_nodecor_ionC']
+    ) / 2
+    
+    # XXX hard coded polarization
+    df['energy_nodecor_ion_conservation'] = (
+        - df['energy_nodecor_ionA'] - df['energy_nodecor_ionB']
+        + df['energy_nodecor_ionC'] + df['energy_nodecor_ionD']
     ) / 2
 
     return None
@@ -381,6 +466,51 @@ def fid_cuts(df):
     return None
 
 
+def charge_conservation_threshold(energy_heat):
+    nsigma = 2
+    return (0.4120323 + 0.00165406 * energy_heat) * nsigma
+
+def charge_conservation_cut(df):
+    """ 
+    Create a new column with the truth array of the 
+    charge conservation cut.
+    """    
+    ion_conservation = df['energy_nodecor_ion_conservation']
+    energy_heat = df['energy_heat']
+    
+    threshold = charge_conservation_threshold(energy_heat)
+        
+    df['charge_conservation_cut'] = abs(ion_conservation) < threshold
+        
+    return None
+
+
+# def nodecor_fid_cuts(df):
+#     """ 
+#     Apply the so-called FID cuts, which is a way to discriminate events
+#     happening in the bulk (or in the guard) region from the others.
+#     Create new columns with the truth array for the bulk and guard events.
+#     """    
+#     energy_ion_collect = df['energy_nodecor_ion_bulk']
+#     energy_ion_guard = df['energy_nodecor_ion_guard']
+    
+#     collect_energy_threshold = guard_threshold_for_bulk_cut(energy_ion_collect)
+
+#     guard_energy_threshold = bulk_threshold_for_guard_cut(energy_ion_guard)
+    
+#     df['nodecor_bulk_cut'] = (
+#         ( abs(df['energy_nodecor_ionA']) < collect_energy_threshold )
+#         & ( abs(df['energy_nodecor_ionC']) < collect_energy_threshold )
+#     )
+
+#     df['nodecor_guard_cut'] = (
+#         ( abs(df['energy_nodecor_ionB']) < guard_energy_threshold )
+#         & ( abs(df['energy_nodecor_ionD']) < guard_energy_threshold )
+#     )
+    
+#     return None
+
+
 def energy_cut(df, energy_bounds=[0.025, 50]):
     """
     Extra cut to select a specific range in energy.
@@ -413,12 +543,12 @@ def std_energy_ion(ec):
     """
     standard deviation on the ionization energy in function of the heat energy.
     """
-    std_nb = 0.254
+    # std_nb = 0.254
+    std_nb = 0.200
     #std_1kev = 0.272
     std_10kev = 0.318
     alpha = (std_10kev**2 - std_nb**2)**0.5 / 10.37
     return ( std_nb**2 + (alpha*ec)**2 )**0.5
-
 
 
 def band_cut(df):
@@ -471,7 +601,15 @@ def analysis_data(stream, df_fine):
     
     physical_quantities(df_analysis)
     band_cut(df_analysis)
+
+    #nodecor
+    nodecor_crosstalk_correction(df_analysis)
+    nodecor_calibration_ion(stream, df_analysis)
     
+    nodecor_virtual_channels(df_analysis)
+    charge_conservation_cut(df_analysis)
+    # nodecor_fid_cuts(df_analysis)    
+
     return df_analysis
 
 
@@ -493,7 +631,7 @@ def analysis_simulation(stream, df_fine):
     crosstalk_correction(df_analysis)
     calibration_heat(stream, df_analysis)
     calibration_ion(stream, df_analysis)
-    
+
     virtual_channels(df_analysis)
     fid_cuts(df_analysis)
     trigger_cut(df_analysis)
@@ -501,6 +639,15 @@ def analysis_simulation(stream, df_fine):
     band_cut(df_analysis)
     
     physical_quantities(df_analysis)
+
+    #nodecor
+    nodecor_crosstalk_correction(df_analysis)
+    nodecor_calibration_ion(stream, df_analysis)
+    
+    nodecor_virtual_channels(df_analysis)
+    charge_conservation_cut(df_analysis)
+    # nodecor_fid_cuts(df_analysis)    
+
     
     return df_analysis
 

@@ -117,8 +117,10 @@ def data_root_to_df(root):
     df_raw = root['EventTree_trig_Normal_raw'].pandas.df()
     df_filt = root['EventTree_trig_Normal_filt'].pandas.df()
     df_filt_decor = root['EventTree_trig_Normal_filt_decor'].pandas.df()
+    df_raw_noise = root['EventTree_noise_Normal_raw'].pandas.df()
+    df_filt_decor_noise = root['EventTree_noise_Normal_filt_decor'].pandas.df()    
     
-    df_list = [df_raw, df_filt, df_filt_decor]
+    df_list = [df_raw, df_filt, df_filt_decor, df_raw_noise, df_filt_decor_noise]
     suffix_list = ['_raw', '_filt', '_filt_decor']
     for df, suffix in zip(df_list, suffix_list):
         # decode_byte_column_name(df)
@@ -251,10 +253,10 @@ if __name__ == "__main__":
     # DATA root files
     data_root_directory = '/home/misiak/Data/data_run57_neutron/Data'
     data_output_path = '/'.join([output_directory, 'data.h5'])
-    data_root_to_hdf5(data_root_directory, data_output_path)
+    # data_root_to_hdf5(data_root_directory, data_output_path)
     
-    # SIMULATION root files
-    simulation_root_directory = '/home/misiak/Data/data_run57_neutron/SimuCoinc'
-    simulation_output_path = '/'.join([output_directory, 'simu.h5'])
-    simu_root_to_hdf5(simulation_root_directory, simulation_output_path)
+    # # SIMULATION root files
+    # simulation_root_directory = '/home/misiak/Data/data_run57_neutron/SimuCoinc'
+    # simulation_output_path = '/'.join([output_directory, 'simu.h5'])
+    # simu_root_to_hdf5(simulation_root_directory, simulation_output_path)
     

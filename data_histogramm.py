@@ -47,10 +47,21 @@ energy_column = 'recoil_energy_bulk'
 source_list = ['Calibration', 'Background']
 simulation_list = ['flat_ER', 'line_1keV', 'line_10keV', 'flat_NR']
 
-fine_cut = df_simu['trigger_cut'] & df_simu['quality_cut'] & df_simu['bulk_cut']
+fine_cut = (
+    df_simu['trigger_cut']
+    & df_simu['quality_cut']
+    & df_simu['bulk_cut']
+    & df_simu['charge_conservation_cut']
+)
+
 df_fine = df_simu[fine_cut]
 
-fine_data_cut = df_data['quality_cut'] & df_data['bulk_cut']
+fine_data_cut = (
+    df_data['quality_cut']
+    & df_data['bulk_cut']
+    & df_data['charge_conservation_cut']
+)
+
 df_fine_data = df_data[fine_data_cut]
 
 def event_population_cuts(df):
@@ -696,10 +707,17 @@ for source in source_list:
     
     neutron_corr = neutron_corr_data_dict[source]
     
+    # adv_data_dict[source]['ER'] = np.sum(
+    #     [num for key,num in neutron_corr.items() if 'gamma' in key],
+    #     axis=0
+    # )
+
+    ### HACK
     adv_data_dict[source]['ER'] = np.sum(
-        [num for key,num in neutron_corr.items() if 'gamma' in key],
+        [num for key,num in neutron_corr.items() if ('gamma' in key) and ~('ho' in key)],
         axis=0
     )
+
 
     adv_data_dict[source]['NR'] = np.sum(
         [num for key,num in neutron_corr.items() if 'neutron' in key],
@@ -732,7 +750,8 @@ for source in source_list:
         )
         trigger_cut = df_simu['trigger_cut'] & all_cut
         quality_cut = df_simu['quality_cut'] & trigger_cut
-        bulk_cut = df_simu['bulk_cut'] & quality_cut
+        charge_cut = df_simu['charge_conservation_cut'] & quality_cut
+        bulk_cut = df_simu['bulk_cut'] & charge_cut
         
         no_other = (
             df_simu['gamma_cut']
@@ -745,6 +764,7 @@ for source in source_list:
             'all': all_cut,
             'trigger': trigger_cut,
             'quality': quality_cut,
+            'charge': charge_cut,
             'bulk': bulk_cut,
             'band': band_cut,
         }
@@ -1052,4 +1072,26 @@ ax.set_xlabel('Recoil Energy [keV]')
 ax.grid(which='both', alpha=0.5)
 fig.tight_layout()
 
+
+#%%
+fig, ax = plt.subplots()
+
+ax.plot(
+        df_fine_data[df_fine_data.source == 'Background']['recoil_energy_bulk'],
+        df_fine_data[df_fine_data.source == 'Background']['quenching_bulk'],
+        ls='none',
+        marker='.',
+        alpha=0.3,
+        color='deepskyblue'
+)
+   
+ax.plot(
+        df_fine_data[df_fine_data.source == 'Calibration']['recoil_energy_bulk'],
+        df_fine_data[df_fine_data.source == 'Calibration']['quenching_bulk'],
+        ls='none',
+        marker='.',
+        alpha=0.3,
+        color='k'
+)
+    
 

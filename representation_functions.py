@@ -29,7 +29,8 @@ from data_analysis import (
     std_energy_ion,
     quenching,
     energy_recoil,
-    lindhard
+    lindhard,
+    charge_conservation_threshold,
 )
 
 def temporal_plot(title, df):
@@ -570,6 +571,43 @@ def crosstalk_correction(title, df):
     return fig_cross
 
 
+def nodecor_crosstalk_correction(title, df):
+    
+    samples = df[df.quality_cut][[
+        'energy_adu_nodecor_ionA',
+        'energy_adu_nodecor_ionB',
+        'energy_adu_nodecor_ionC',
+        'energy_adu_nodecor_ionD',
+    ]]
+    samples_corr = df[df.quality_cut][[
+        'energy_adu_corr_nodecor_ionA',
+        'energy_adu_corr_nodecor_ionB',
+        'energy_adu_corr_nodecor_ionC',
+        'energy_adu_corr_nodecor_ionD',
+    ]]
+    fig_cross, axes = basic_corner(
+        samples.values,
+        samples.columns,
+        num = '{}: Cross-talk Correction Nodecor'.format(title),
+        label='raw',
+        alpha=0.1,
+    )
+    basic_corner(
+        samples_corr.values,
+        samples_corr.columns,
+        axes=axes,
+        color='slateblue',
+        zorder=-1,
+        label='corrected'
+    )
+    for ax in fig_cross.get_axes():
+        ax.axvline(0, color='r', zorder=-5)
+        ax.axhline(0, color='r', zorder=-5)
+        
+    return fig_cross
+
+
+
 def trigger_cut_plot(title, df_analysis):
     
     # trigger cut (specific to simulation)
@@ -920,7 +958,6 @@ def plot_10kev(title, df_analysis):
     fig_10kev.tight_layout()
     
     return fig_10kev
-
 
 def fid_cut_plot(title, df_analysis):
     
@@ -1286,6 +1323,70 @@ def band_cut_plots(title, df_analysis):
     return fig_band_ecei, fig_band_quenching
 
 
+def charge_conservation(title, df):
+    quality_cut = df['quality_cut']
+    charge_cut = df['charge_conservation_cut']   
+    
+    energy_heat = df['energy_heat'][quality_cut]
+    ion_conservation = df['energy_nodecor_ion_conservation'][quality_cut]
+
+    x_array = np.linspace(
+        energy_heat.min(),
+        energy_heat.max(),
+        int(1e4)
+    )
+    
+    fig, ax = plt.subplots(
+        num = '{} : charge conservation'.format(title),
+        figsize=(10,7),
+    )
+    
+    ax.plot(
+        energy_heat[quality_cut & charge_cut],
+        ion_conservation[quality_cut & charge_cut],
+        ls='none',
+        marker='.',
+        color='b',
+        alpha=0.1,
+        label='Charge Conservation Cut'
+    )
+
+    ax.plot(
+        energy_heat[quality_cut & ~charge_cut],
+        ion_conservation[quality_cut & ~charge_cut],
+        ls='none',
+        marker='.',
+        alpha=0.1,
+        color='r',
+        label='Quality_ Cut'
+    )
+
+    ax.plot(
+        x_array,
+        charge_conservation_threshold(x_array),
+        color='coral'
+    )
+    
+    ax.plot(
+        x_array,
+        -charge_conservation_threshold(x_array),
+        color='coral'
+    )
+    
+    ax.set_title('{} : charge conservation'.format(title))
+    ax.grid()
+    ax.set_xlim(5e-2, 300)
+    ax.set_ylim(-2.5, 2.5)
+    ax.set_xscale('log')
+    
+    ax.set_xlabel('Heat Energy [keV]')
+    ax.set_ylabel('Charge Conservation: A + B - C - D [keV]')
+    
+    fig.tight_layout()
+    
+    return fig
+
+
 if __name__ == '__main__':
     
     plt.close('all')
@@ -1316,5 +1417,6 @@ if __name__ == '__main__':
         # fig_hist_trig = histogram_adu(stream, df_analysis)
         # fig_hist_trig_ev = histogram_ev(stream, df_analysis)
         # fig_ion = ion_vs_ion(stream, df_analysis)
-        fig_virtual = virtual_vs_virtual_ev(stream, df_analysis)
+        # fig_virtual = virtual_vs_virtual_ev(stream, df_analysis)
+        fig = charge_conservation(stream, df_analysis)
         
