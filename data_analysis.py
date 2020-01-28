@@ -427,15 +427,19 @@ def physical_quantities(df, voltage=2):
 
 
 def guard_threshold_for_bulk_cut(energy_ion):
-    std_noise_blob_fid = 1
-    std_10kev_fid = 1.5
+    # std_noise_blob_fid = 1
+    # std_10kev_fid = 1.5
+    std_noise_blob_fid = 0.29
+    std_10kev_fid = 0.5
     alpha_fid = (std_10kev_fid**2 - std_noise_blob_fid**2)**0.5 / 10.37    
     return (std_noise_blob_fid**2 + (alpha_fid*energy_ion)**2)**0.5
 
 
 def bulk_threshold_for_guard_cut(energy_ion):
-    std_noise_blob_fid = 1
-    std_10kev_fid = 1.5
+    # std_noise_blob_fid = 1
+    # std_10kev_fid = 1.5
+    std_noise_blob_fid = 0.29
+    std_10kev_fid = 0.5
     alpha_fid = (std_10kev_fid**2 - std_noise_blob_fid**2)**0.5 / 10.37    
     return (std_noise_blob_fid**2 + (alpha_fid*energy_ion)**2)**0.5
 
@@ -449,9 +453,11 @@ def fid_cuts(df):
     energy_ion_collect = df['energy_ion_bulk']
     energy_ion_guard = df['energy_ion_guard']
     
-    collect_energy_threshold = guard_threshold_for_bulk_cut(energy_ion_collect)
+    nsigma = 2
+    
+    collect_energy_threshold = guard_threshold_for_bulk_cut(energy_ion_collect) * nsigma
 
-    guard_energy_threshold = bulk_threshold_for_guard_cut(energy_ion_guard)
+    guard_energy_threshold = bulk_threshold_for_guard_cut(energy_ion_guard) * nsigma
     
     df['bulk_cut'] = (
         ( abs(df['energy_ionA']) < collect_energy_threshold )
@@ -544,9 +550,11 @@ def std_energy_ion(ec):
     standard deviation on the ionization energy in function of the heat energy.
     """
     # std_nb = 0.254
-    std_nb = 0.200
+    # std_nb = 0.200
+    std_nb = 0.22
     #std_1kev = 0.272
-    std_10kev = 0.318
+    # std_10kev = 0.318
+    std_10kev = 0.45
     alpha = (std_10kev**2 - std_nb**2)**0.5 / 10.37
     return ( std_nb**2 + (alpha*ec)**2 )**0.5
 
@@ -555,7 +563,8 @@ def band_cut(df):
 
     energy_heat = df['energy_heat']
     energy_ion = df['energy_ion_bulk']
-    ei_err = 3 * std_energy_ion(energy_heat)
+    nsigma = 2
+    ei_err = nsigma * std_energy_ion(energy_heat)
 
     gamma_cut = ( abs(energy_ion - energy_heat) < ei_err )
 
@@ -609,6 +618,35 @@ def analysis_data(stream, df_fine):
     nodecor_virtual_channels(df_analysis)
     charge_conservation_cut(df_analysis)
     # nodecor_fid_cuts(df_analysis)    
+
+    return df_analysis
+
+
+def analysis_noise(stream, df_fine):
+    """
+    Use with experimental data.
+    Create an analysed dataframe from the given fine dataframe.
+    """
+    df_analysis = pd.DataFrame()
+    for col in df_fine.columns:
+        df_analysis[col] = df_fine[col]
+    
+    glitch_time_cut(stream, df_analysis)
+    heat_chi2_cut(stream, df_analysis)
+    ion_chi2_cut(stream, df_analysis)
+    offset_ion_cut(df_analysis)
+    quality_cut(df_analysis)
+    
+    crosstalk_correction(df_analysis)
+    calibration_heat(stream, df_analysis)
+    calibration_ion(stream, df_analysis)
+    
+    virtual_channels(df_analysis)
+    fid_cuts(df_analysis)
+    energy_cut(df_analysis)
+    
+    physical_quantities(df_analysis)
+    band_cut(df_analysis)  
 
     return df_analysis
 
@@ -700,6 +738,15 @@ if __name__ == "__main__":
         fine_data_path,
         output_data_path,
         analysis_data
+    )
+
+    fine_noise_path = '/'.join([analysis_dir, 'noise_fine.h5'])
+    output_noise_path = '/'.join([analysis_dir, 'noise_analysis.h5'])   
+    
+    hdf5_analysis(
+        fine_noise_path,
+        output_noise_path,
+        analysis_noise
     )
     
     fine_simu_path = '/'.join([analysis_dir, 'simu_fine.h5'])

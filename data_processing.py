@@ -81,7 +81,7 @@ def extract_useful_columns_for_data(df):
         'energy_adu_nodecor_ionA': 'Energy_OF[2]_filt',
         'energy_adu_nodecor_ionB': 'Energy_OF[3]_filt',
         'energy_adu_nodecor_ionC': 'Energy_OF[4]_filt',
-        'energy_adu_nodecor_ionD': 'Energy_OF[5]_filt',        
+        'energy_adu_nodecor_ionD': 'Energy_OF[5]_filt',
     }
 
     # merging the previous directories together
@@ -93,6 +93,48 @@ def extract_useful_columns_for_data(df):
     }
 
     for col, key in useful_key_dict.items():
+        df_fine[col] = df[key]
+
+    return df_fine
+
+
+def extract_useful_columns_for_noise(df):
+    """
+    Same as the previous function, but with additional extracted columns
+    for the pulse simulation.
+    """
+    
+    df_fine = extract_useful_columns_for_data(df)
+    
+    # extracting the useful columns, and renaming them
+    chi2_key_dict = {
+        'chi2_heat': 'chi2_OF_t0[0]_filt_decor',
+        'chi2_ionA': 'chi2_OF_t0[2]_filt_decor',
+        'chi2_ionB': 'chi2_OF_t0[3]_filt_decor',
+        'chi2_ionC': 'chi2_OF_t0[4]_filt_decor',
+        'chi2_ionD': 'chi2_OF_t0[5]_filt_decor',
+    }
+
+    energy_key_dict = {
+        'energy_adu_heat': 'Energy_OF_t0[0]_filt_decor',
+        'energy_adu_ionA': 'Energy_OF_t0[2]_filt_decor',
+        'energy_adu_ionB': 'Energy_OF_t0[3]_filt_decor',
+        'energy_adu_ionC': 'Energy_OF_t0[4]_filt_decor',
+        'energy_adu_ionD': 'Energy_OF_t0[5]_filt_decor',
+        'energy_adu_nodecor_heat': 'Energy_OF_t0[0]_filt',
+        'energy_adu_nodecor_ionA': 'Energy_OF_t0[2]_filt',
+        'energy_adu_nodecor_ionB': 'Energy_OF_t0[3]_filt',
+        'energy_adu_nodecor_ionC': 'Energy_OF_t0[4]_filt',
+        'energy_adu_nodecor_ionD': 'Energy_OF_t0[5]_filt',
+    }
+
+    # merging the previous directories together
+    noise_key_dict = {
+        **chi2_key_dict,
+        **energy_key_dict,
+    }
+
+    for col, key in noise_key_dict.items():
         df_fine[col] = df[key]
 
     return df_fine
@@ -159,20 +201,30 @@ if __name__ == "__main__":
     raw_data_path =  '/'.join([analysis_dir, 'data.h5'])
     output_data_path = '/'.join([analysis_dir, 'data_fine.h5'])
 
+    # # processing the experimental data
+    # hdf5_processing(
+    #     raw_data_path,
+    #     output_data_path,
+    #     extract_useful_columns_for_data
+    # )
+
+    raw_noise_path =  '/'.join([analysis_dir, 'noise.h5'])
+    output_noise_path = '/'.join([analysis_dir, 'noise_fine.h5'])
+
     # processing the experimental data
     hdf5_processing(
-        raw_data_path,
-        output_data_path,
-        extract_useful_columns_for_data
+        raw_noise_path,
+        output_noise_path,
+        extract_useful_columns_for_noise
     )
 
     raw_simu_path =  '/'.join([analysis_dir, 'simu.h5'])
     output_simu_path = '/'.join([analysis_dir, 'simu_fine.h5'])
   
-    # processinf the pulse simulation
-    hdf5_processing(
-        raw_simu_path,
-        output_simu_path,
-        extract_useful_columns_for_simulation
-    )
+    # # processinf the pulse simulation
+    # hdf5_processing(
+    #     raw_simu_path,
+    #     output_simu_path,
+    #     extract_useful_columns_for_simulation
+    # )
     

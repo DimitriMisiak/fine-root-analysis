@@ -959,7 +959,7 @@ def plot_10kev(title, df_analysis):
     
     return fig_10kev
 
-def fid_cut_plot(title, df_analysis):
+def fid_cut_plot(title, df_analysis, nsigma=2):
     
     quality_cut = df_analysis['quality_cut'] & df_analysis['energy_cut']
     
@@ -1002,7 +1002,7 @@ def fid_cut_plot(title, df_analysis):
     axes = fig_fid.get_axes()
     
     ei_array = np.linspace(-50, 50, int(1e3))
-    thresh_array = guard_threshold_for_bulk_cut(ei_array)
+    thresh_array = nsigma * guard_threshold_for_bulk_cut(ei_array)
     
     color_bulk='deepskyblue'
     for i in (0, 3, 5):
@@ -1093,7 +1093,7 @@ def fid_cut_plot(title, df_analysis):
     return fig_fid
 
 
-def band_cut_plots(title, df_analysis):
+def band_cut_plots(title, df_analysis, nsigma=2):
 
     quality_cut = df_analysis['quality_cut']
     bulk_cut = df_analysis['bulk_cut']
@@ -1161,7 +1161,7 @@ def band_cut_plots(title, df_analysis):
     qu_gamma = np.ones(int(1e4))
     ec_gamma = energy_heat_from_er_and_quenching(er_theory, qu_gamma, 2)
     ei_gamma = energy_ion_from_er_and_quenching(er_theory, qu_gamma)
-    ei_err_gamma = 3*std_energy_ion(ec_gamma)
+    ei_err_gamma = nsigma*std_energy_ion(ec_gamma)
     
     qu_gamma_sup_aux = quenching(ec_gamma, ei_gamma + ei_err_gamma, 2)
     er_gamma_sup = energy_recoil(ec_gamma, ei_gamma + ei_err_gamma, 2)
@@ -1175,7 +1175,7 @@ def band_cut_plots(title, df_analysis):
     qu_neutron = lindhard(er_theory)
     ec_neutron = energy_heat_from_er_and_quenching(er_theory, qu_neutron, 2)
     ei_neutron = energy_ion_from_er_and_quenching(er_theory, qu_neutron)
-    ei_err_neutron = 3*std_energy_ion(ec_neutron)
+    ei_err_neutron = nsigma*std_energy_ion(ec_neutron)
 
     qu_neutron_sup_aux = quenching(ec_neutron, ei_neutron + ei_err_neutron, 2)
     er_neutron_sup = energy_recoil(ec_neutron, ei_neutron + ei_err_neutron, 2)
@@ -1189,7 +1189,8 @@ def band_cut_plots(title, df_analysis):
     qu_ho = np.zeros(int(1e4))
     ec_ho = energy_heat_from_er_and_quenching(er_theory, qu_ho, 2)    
     ei_ho = energy_ion_from_er_and_quenching(er_theory, qu_ho)
-    ei_err_ho = 3*std_energy_ion(ec_ho)
+    ei_err_ho = nsigma*std_energy_ion(ec_ho)
+    
     qu_ho_sup = quenching(ec_ho, ei_ho + ei_err_ho, 2)
     qu_ho_inf = quenching(ec_ho, ei_ho - ei_err_ho, 2)    
     

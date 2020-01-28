@@ -63,11 +63,30 @@ def precalibration_plots(
     fig_cross = crosstalk_correction(title, df_analysis)
     fig_dict['crosstalk_correction'] = fig_cross
 
+    # ## nodecor
+    # ### crosstalk correction
+    # fig_cross_nodecor = nodecor_crosstalk_correction(title, df_analysis)
+    # fig_dict['nodecor_crosstalk_correction'] = fig_cross_nodecor
+
+    return fig_dict
+
+
+def nodecor_plots(
+        title,
+        df_analysis
+    ):
+    
+    fig_dict = dict()
+    
     ## nodecor
     ### crosstalk correction
     fig_cross_nodecor = nodecor_crosstalk_correction(title, df_analysis)
     fig_dict['nodecor_crosstalk_correction'] = fig_cross_nodecor
 
+    ### plot charge conservation
+    fig_charge = charge_conservation(title, df_analysis)
+    fig_dict['charge_conservation'] = fig_charge
+    
     return fig_dict
 
 
@@ -115,9 +134,9 @@ def postcalibration_plots(
     fig_dict['band_cut_ecei'] = fig_ecei
     fig_dict['band_cut_quenching'] = fig_quenching
     
-    ### plot charge conservation
-    fig_charge = charge_conservation(title, df_analysis)
-    fig_dict['charge_conservation'] = fig_charge
+    # ### plot charge conservation
+    # fig_charge = charge_conservation(title, df_analysis)
+    # fig_dict['charge_conservation'] = fig_charge
     
     return fig_dict
 
@@ -149,7 +168,45 @@ def plotting_data_stream(
 
     fig_dict = {
         **precalibration_plots(stream, title, df_analysis),
-        **postcalibration_plots(title, df_analysis)
+        **postcalibration_plots(title, df_analysis),
+        **nodecor_plots(title, df_analysis),
+    }
+    
+    if save_flag:
+        save_figure_dict(fig_dict, save_dir)
+        
+    return fig_dict
+
+
+def plotting_noise_stream(
+        stream,
+        hdf5_path,
+        output_dir,
+        save_flag=False
+    ):
+
+    # saving all the figures
+    save_dir = '/'.join([
+        output_dir,
+        stream,
+        'noise'
+    ])
+    
+    df_analysis = pd.read_hdf(
+        hdf5_path,
+        key='df',
+        where=(
+            'stream = "{0}"'
+        ).format(stream)
+    )
+
+    source = df_analysis['source'].unique()[0]
+
+    title = '{0} {1} {2}'.format(stream, 'noise', source).replace('_', ' ')
+
+    fig_dict = {
+        **precalibration_plots(stream, title, df_analysis),
+        **postcalibration_plots(title, df_analysis),
     }
     
     if save_flag:
@@ -190,6 +247,7 @@ def plotting_simu_stream(
         **precalibration_plots(stream, title, df_analysis),
         **simu_only_plots(title, df_analysis),
         **postcalibration_plots(title, df_analysis),
+        **nodecor_plots(title, df_analysis),
     }
     
     if save_flag:
@@ -222,7 +280,42 @@ def plotting_data_source(
     title = '{0} {1} {2}'.format('All streams', 'Data', source).replace('_', ' ')
 
     fig_dict = {
-        **postcalibration_plots(title, df_analysis)
+        **postcalibration_plots(title, df_analysis),
+        **nodecor_plots(title, df_analysis),
+    }
+    
+    if save_flag:
+        save_figure_dict(fig_dict, save_dir)
+        
+    return fig_dict
+
+
+def plotting_noise_source(
+        source,
+        hdf5_path,
+        output_dir,
+        save_flag=False
+    ):
+
+    # saving all the figures
+    save_dir = '/'.join([
+        output_dir,
+        source,
+        'noise'
+    ])
+    
+    df_analysis = pd.read_hdf(
+        hdf5_path,
+        key='df',
+        where=(
+            'source = "{0}"'
+        ).format(source)
+    )
+
+    title = '{0} {1} {2}'.format('All streams', 'Noise', source).replace('_', ' ')
+
+    fig_dict = {
+        **postcalibration_plots(title, df_analysis),
     }
     
     if save_flag:
@@ -262,6 +355,7 @@ def plotting_simu_source(
     fig_dict = {
         **simu_only_plots(title, df_analysis),
         **postcalibration_plots(title, df_analysis),
+        **nodecor_plots(title, df_analysis),
     }
     
     if save_flag:
@@ -279,6 +373,7 @@ if __name__ == "__main__":
     output_plot_dir = '/'.join([analysis_dir, 'analysis_plots'])
     
     analysis_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])
+    analysis_noise_path = '/'.join([analysis_dir, 'noise_analysis.h5'])
     analysis_simu_path = '/'.join([analysis_dir, 'simu_analysis.h5'])
     
     stream_list = [
@@ -300,19 +395,27 @@ if __name__ == "__main__":
         'line_10keV',
     ]
 
-    # plotting_data_stream(
+    # plotting_noise_stream(
     #     'tg28l000',
-    #     analysis_data_path,
+    #     analysis_noise_path,
     #     output_plot_dir,
     #     save_flag=False
     # )
 
-    plotting_data_source(
+    # A = plotting_noise_source(
+    #     'Background',
+    #     analysis_noise_path,
+    #     output_plot_dir,
+    #     save_flag=True
+    # )
+
+    A = plotting_data_source(
         'Background',
         analysis_data_path,
         output_plot_dir,
-        save_flag=True
+        save_flag=False
     )
+
     # for stream in tqdm(stream_list):
     #     plotting_data_stream(
     #         stream,

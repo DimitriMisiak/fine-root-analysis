@@ -31,13 +31,13 @@ df_data = pd.read_hdf(
 #%%
 plt.close('all')
 
-# bins = np.arange(0, 50.5, 0.05)
-# bins_width = bins[1] - bins[0]
-# bins_array = bins[:-1] + (bins_width) / 2
+bins = np.arange(0, 50.5, 0.5)
+bins_width = bins[1] - bins[0]
+bins_array = bins[:-1] + (bins_width) / 2
 
-bins = np.logspace(np.log10(0.2), np.log10(50), 100)
-bins_width = (bins[1:] - bins[:-1])
-bins_array = bins[:-1]
+# bins = np.logspace(np.log10(0.2), np.log10(50), 100)
+# bins_width = (bins[1:] - bins[:-1])
+# bins_array = bins[:-1]
 
 # =============================================================================
 # CONTAMINATION calculation
@@ -198,18 +198,20 @@ fig.subplots_adjust(hspace=0, wspace=0)
 
 
 ### PLOT DATA population
-fig, axes = plt.subplots(ncols=2, num='DATA Stacked hist events population',
+fig, axes = plt.subplots(ncols=2, nrows=2, num='DATA Stacked hist events population',
                           figsize=(10, 7), sharex='col', sharey='row')
 
 ###
 for js, source in enumerate(source_list):
 
-        a = axes[js]
-
+        a = axes[0][js]
+        a_delta = axes[1][js]
+        
         bot = bins_array * 0
         for key, num in pop_data_dict[source].items():
             
             if key=='all':
+                num_all = num
                 a.plot(
                     bins_array,
                     num,
@@ -228,6 +230,14 @@ for js, source in enumerate(source_list):
             )
             bot += num
 
+        a_delta.plot(
+            bins_array,
+            num_all - bot,
+            color='k',
+            ls='steps-mid',
+            zorder=10
+        )
+
         msg = '{} Data Events'.format(source).replace('_', ' ')
         a.text(
             0.5, 0.1,
@@ -237,14 +247,17 @@ for js, source in enumerate(source_list):
             transform=a.transAxes
         )
         a.grid()
+        a_delta.grid()
 
 a.legend(
     loc='center left',
     bbox_to_anchor=(1.05, 0.5)
 )
+a.set_yscale('log')
 
-axes[0].set_ylabel('Counts')
-for ax in axes:
+axes[0][0].set_ylabel('Counts')
+axes[1][0].set_ylabel('Delta "all"')
+for ax in axes[-1,:]:
     ax.set_xlabel('Recoil Energy [keV]')
 
 fig.tight_layout()
@@ -426,18 +439,20 @@ for source in source_list:
     
     
 ### PLOT DATA population
-fig, axes = plt.subplots(ncols=2, num='CORR GAMMA DATA Stacked hist events population',
+fig, axes = plt.subplots(ncols=2, nrows=2, num='CORR GAMMA DATA Stacked hist events population',
                           figsize=(20, 7), sharex='col', sharey='row')
 
 ###
 for js, source in enumerate(source_list):
 
-        a = axes[js]
-
+        a = axes[0][js]
+        a_delta = axes[1][js]
+        
         bot = bins_array * 0
         for key, num in corr_data_dict[source].items():
             
             if key=='all':
+                num_all = num
                 a.plot(
                     bins_array,
                     num,
@@ -456,6 +471,13 @@ for js, source in enumerate(source_list):
             )
             bot += num
 
+        a_delta.plot(
+            bins_array,
+            num_all - bot,
+            color='k',
+            ls='steps-mid',
+        )
+
         msg = '{} Data Events'.format(source).replace('_', ' ')
         a.text(
             0.5, 0.1,
@@ -465,14 +487,16 @@ for js, source in enumerate(source_list):
             transform=a.transAxes
         )
         a.grid()
+        a_delta.grid()
 
 a.legend(
     loc='center left',
     bbox_to_anchor=(1.05, 0.5)
 )
 
-axes[0].set_ylabel('Counts')
-for ax in axes:
+axes[0][0].set_ylabel('Counts')
+axes[1][0].set_ylabel('Delta "all"')
+for ax in axes[1,:]:
     ax.set_xlabel('Recoil Energy [keV]')
 
 fig.tight_layout()
@@ -502,7 +526,7 @@ for i, source in enumerate(source_list):
     def pure_gamma_model(x, a,b):
         return a*spectrum_simu_flat*np.exp(-b*x)
 
-    p0 = [100, 1]
+    p0 = [1.6, 0.08]
     # spectrum_mod0 = pure_gamma_model(bins_array, *p0)
 
     popt, pcov = curve_fit(
@@ -646,18 +670,20 @@ for source in source_list:
     
     
 ### PLOT DATA population
-fig, axes = plt.subplots(ncols=2, num='CORR NEUTRON DATA Stacked hist events population',
+fig, axes = plt.subplots(ncols=2, nrows=2, num='CORR NEUTRON DATA Stacked hist events population',
                           figsize=(20, 7), sharex='col', sharey='row')
 
 ###
 for js, source in enumerate(source_list):
 
-        a = axes[js]
+        a = axes[0][js]
+        a_delta = axes[1][js]
 
         bot = bins_array * 0
         for key, num in neutron_corr_data_dict[source].items():
             
             if key=='all':
+                num_all = num
                 a.plot(
                     bins_array,
                     num,
@@ -676,6 +702,13 @@ for js, source in enumerate(source_list):
             )
             bot += num
 
+        a_delta.plot(
+            bins_array,
+            num_all - bot,
+            color='k',
+            ls='steps-mid',
+        )
+
         msg = '{} Data Events'.format(source).replace('_', ' ')
         a.text(
             0.5, 0.1,
@@ -685,14 +718,16 @@ for js, source in enumerate(source_list):
             transform=a.transAxes
         )
         a.grid()
+        a_delta.grid()
 
 a.legend(
     loc='center left',
     bbox_to_anchor=(1.05, 0.5)
 )
 
-axes[0].set_ylabel('Counts')
-for ax in axes:
+axes[0][0].set_ylabel('Counts')
+axes[1][0].set_ylabel('Delta "all"')
+for ax in axes[-1,:]:
     ax.set_xlabel('Recoil Energy [keV]')
 
 fig.tight_layout()
@@ -712,18 +747,23 @@ for source in source_list:
     #     axis=0
     # )
 
+    # ### HACK
+    # adv_data_dict[source]['ER'] = np.sum(
+    #     [num for key,num in neutron_corr.items() if ('gamma' in key) and ~('ho' in key)],
+    #     axis=0
+    # )
+
+
+    # adv_data_dict[source]['NR'] = np.sum(
+    #     [num for key,num in neutron_corr.items() if 'neutron' in key],
+    #     axis=0
+    # )   
+
     ### HACK
-    adv_data_dict[source]['ER'] = np.sum(
-        [num for key,num in neutron_corr.items() if ('gamma' in key) and ~('ho' in key)],
-        axis=0
-    )
+    adv_data_dict[source]['ER'] = neutron_corr['pure gamma']
 
 
-    adv_data_dict[source]['NR'] = np.sum(
-        [num for key,num in neutron_corr.items() if 'neutron' in key],
-        axis=0
-    )   
-    
+    adv_data_dict[source]['NR'] = neutron_corr['pure neutron']
 
 #%%
 # =============================================================================
@@ -758,6 +798,13 @@ for source in source_list:
             | df_simu['neutron_cut']
             | df_simu['HO_cut']
         )
+        # if sim == 'ER':
+        #     no_other = (
+        #         df_simu['gamma_cut']
+        #     )
+        # elif sim == 'NR':
+        #     no_other = (
+        #         df_simu['neutron_cut']
         band_cut = bulk_cut & no_other 
         
         cut_dict = {
@@ -919,7 +966,7 @@ for source in source_list:
         exposure += (raw_length - malus)
     
 
-    exposure_dict[source] = exposure
+    exposure_dict[source] = exposure / 24 # in hours
 
 DRU_dict = dict()
 inte_dict = dict()
