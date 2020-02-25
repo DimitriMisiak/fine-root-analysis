@@ -672,7 +672,10 @@ def analysis_simulation(stream, df_fine):
 
     virtual_channels(df_analysis)
     fid_cuts(df_analysis)
+    
+    # simulation specific
     trigger_cut(df_analysis)
+    
     energy_cut(df_analysis)
     band_cut(df_analysis)
     

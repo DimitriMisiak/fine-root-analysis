@@ -201,22 +201,22 @@ if __name__ == "__main__":
     raw_data_path =  '/'.join([analysis_dir, 'data.h5'])
     output_data_path = '/'.join([analysis_dir, 'data_fine.h5'])
 
-    # # processing the experimental data
-    # hdf5_processing(
-    #     raw_data_path,
-    #     output_data_path,
-    #     extract_useful_columns_for_data
-    # )
+    # processing the experimental data
+    hdf5_processing(
+        raw_data_path,
+        output_data_path,
+        extract_useful_columns_for_data
+    )
 
     raw_noise_path =  '/'.join([analysis_dir, 'noise.h5'])
     output_noise_path = '/'.join([analysis_dir, 'noise_fine.h5'])
 
     # processing the experimental data
-    hdf5_processing(
-        raw_noise_path,
-        output_noise_path,
-        extract_useful_columns_for_noise
-    )
+    # hdf5_processing(
+    #     raw_noise_path,
+    #     output_noise_path,
+    #     extract_useful_columns_for_noise
+    # )
 
     raw_simu_path =  '/'.join([analysis_dir, 'simu.h5'])
     output_simu_path = '/'.join([analysis_dir, 'simu_fine.h5'])

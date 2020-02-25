@@ -31,13 +31,18 @@ df_data = pd.read_hdf(
 #%%
 plt.close('all')
 
-bins = np.arange(0, 50.5, 0.5)
-bins_width = bins[1] - bins[0]
-bins_array = bins[:-1] + (bins_width) / 2
+# bins = np.arange(0, 50.5, 0.5)
+# bins_width = bins[1] - bins[0]
+# bins_array = bins[:-1] + (bins_width) / 2
 
-# bins = np.logspace(np.log10(0.2), np.log10(50), 100)
-# bins_width = (bins[1:] - bins[:-1])
-# bins_array = bins[:-1]
+bins = np.logspace(np.log10(0.2), np.log10(50), 100)
+bins_width = (bins[1:] - bins[:-1])
+bins_array = bins[:-1]
+
+bins = np.logspace(np.log(0.2), np.log(50), 100, base=np.exp(1))
+bins_width = (bins[1:] - bins[:-1])
+bins_array = bins[:-1]
+
 
 # =============================================================================
 # CONTAMINATION calculation
@@ -964,6 +969,11 @@ for source in source_list:
             malus += (sup - inf)
         
         exposure += (raw_length - malus)
+    
+        # for debug
+        print(stream)
+        print(raw_length)
+        print(raw_length-malus)
     
 
     exposure_dict[source] = exposure / 24 # in hours
