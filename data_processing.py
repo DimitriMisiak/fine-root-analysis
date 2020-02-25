@@ -28,7 +28,15 @@ def extract_useful_columns_for_data(df):
     """
     # initialization of the fine DataFrame
     df_fine = pd.DataFrame()
-    for col in ['detector', 'source', 'stream']:
+    col_kept = [
+        'detector',
+        'source',
+        'stream',
+        'frequency',
+        'maintenance_duration',
+        'maintenance_cycle'
+    ]
+    for col in col_kept:
         df_fine[col] = df[col]
 
     # creating the timestamp column
@@ -37,16 +45,9 @@ def extract_useful_columns_for_data(df):
         + df.NumPart_filt_decor
     )
 
-    # benefiting from this processing function to do the maintenance cut
-    full_maintenance_duration = (
-        (df.maintenance_duration + df.maintenance_cycle)/3600
-    )
-    remainder = df_fine.timestamp % full_maintenance_duration
-    
-    df_fine['maintenance_cut'] = (
-        remainder > (df.maintenance_duration/3600)
-    )
-    
+    # creating the time_modulo_reset column
+    df_fine['time_modulo_reset'] = df['Time_modulo_reset_filt_decor']
+
     # extracting the useful columns, and renaming them
     chi2_key_dict = {
         'chi2_heat': 'chi2_OF[0]_filt_decor',
@@ -212,19 +213,19 @@ if __name__ == "__main__":
     output_noise_path = '/'.join([analysis_dir, 'noise_fine.h5'])
 
     # processing the experimental data
-    # hdf5_processing(
-    #     raw_noise_path,
-    #     output_noise_path,
-    #     extract_useful_columns_for_noise
-    # )
+    hdf5_processing(
+        raw_noise_path,
+        output_noise_path,
+        extract_useful_columns_for_noise
+    )
 
     raw_simu_path =  '/'.join([analysis_dir, 'simu.h5'])
     output_simu_path = '/'.join([analysis_dir, 'simu_fine.h5'])
   
     # # processinf the pulse simulation
-    # hdf5_processing(
-    #     raw_simu_path,
-    #     output_simu_path,
-    #     extract_useful_columns_for_simulation
-    # )
+    hdf5_processing(
+        raw_simu_path,
+        output_simu_path,
+        extract_useful_columns_for_simulation
+    )
     

@@ -996,9 +996,13 @@ for mode in ['Background', 'Calibration']:
         if stype == 'NR':
             cut_2kev = (bins_array >= 2)
 
-            inte = np.trapz(
-                    DRU_dict[mode][stype][cut_2kev],
-                    bins_array[cut_2kev]
+            # inte = np.trapz(
+            #         DRU_dict[mode][stype][cut_2kev],
+            #         bins_array[cut_2kev]
+            # )
+
+            inte = np.sum(
+                DRU_dict[mode][stype][cut_2kev] * bins_width[cut_2kev]
             )
 
             inte_dict[mode] = inte

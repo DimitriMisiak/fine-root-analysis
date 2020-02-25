@@ -22,8 +22,7 @@ from data_analysis import (
     ion_chi2_threshold_function,
     heat_chi2_threshold_function,
     analysis_parameters,
-    guard_threshold_for_bulk_cut,
-    bulk_threshold_for_guard_cut,
+    ionization_baseline_resolution,
     energy_heat_from_er_and_quenching,
     energy_ion_from_er_and_quenching,
     std_energy_ion,
@@ -1002,7 +1001,7 @@ def fid_cut_plot(title, df_analysis, nsigma=2):
     axes = fig_fid.get_axes()
     
     ei_array = np.linspace(-50, 50, int(1e3))
-    thresh_array = nsigma * guard_threshold_for_bulk_cut(ei_array)
+    thresh_array = nsigma * ionization_baseline_resolution() * np.ones(int(1e3))
     
     color_bulk='deepskyblue'
     for i in (0, 3, 5):
@@ -1189,7 +1188,7 @@ def band_cut_plots(title, df_analysis, nsigma=2):
     qu_ho = np.zeros(int(1e4))
     ec_ho = energy_heat_from_er_and_quenching(er_theory, qu_ho, 2)    
     ei_ho = energy_ion_from_er_and_quenching(er_theory, qu_ho)
-    ei_err_ho = nsigma*std_energy_ion(ec_ho)
+    ei_err_ho = nsigma*std_energy_ion(np.zeros(ec_ho.shape))
     
     qu_ho_sup = quenching(ec_ho, ei_ho + ei_err_ho, 2)
     qu_ho_inf = quenching(ec_ho, ei_ho - ei_err_ho, 2)    
@@ -1413,11 +1412,13 @@ if __name__ == '__main__':
             where='stream = "{}"'.format(stream)
         )
         
+        fid_cut_plot(stream, df_analysis)
+        
         # fig_temp = temporal_plot(stream, df_analysis)
         # fig_chi2 = plot_chi2_vs_energy(stream, df_analysis)
         # fig_hist_trig = histogram_adu(stream, df_analysis)
         # fig_hist_trig_ev = histogram_ev(stream, df_analysis)
         # fig_ion = ion_vs_ion(stream, df_analysis)
         # fig_virtual = virtual_vs_virtual_ev(stream, df_analysis)
-        fig = charge_conservation(stream, df_analysis)
+        # fig = charge_conservation(stream, df_analysis)
         

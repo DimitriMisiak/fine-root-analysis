@@ -105,6 +105,34 @@ def glitch_time_cut(stream, df):
     return None
     
 
+def maintenance_cut(df):
+    """
+    Create a new column with the "maintenance cut" truth array.
+    """
+    full_maintenance_duration = (
+        (df.maintenance_duration + df.maintenance_cycle)/3600
+    )
+    remainder = df.timestamp % full_maintenance_duration
+    
+    df['maintenance_cut'] = (
+        remainder > (df.maintenance_duration/3600)
+    )
+    
+    return None
+
+
+def reset_cut(df, tol=0.005):
+    """
+    Create a new column with the "reset_cut" truth array.
+    """
+    time_modulo_centered = df.time_modulo_reset -1.01 # seconds
+    
+    df['reset_cut'] = (
+        abs(time_modulo_centered) > tol
+    )
+    
+    return None
+
 def heat_chi2_threshold_function(x2, e0):
     return x2 * ( 1 + (e0/2e3)**2 )
 
@@ -126,6 +154,7 @@ def heat_chi2_cut(stream, df):
     df['chi2_heat_cut'] = (chi2_heat < chi2_threshold)
     
     return None
+
 
 def ion_chi2_threshold_function(x2, e0):
     return x2 * ( 1 + (e0/3e2)**2.2 )
@@ -185,6 +214,8 @@ def quality_cut(df):
 
     quality_cut_components_columns = [
         'glitch_time_cut',
+        'maintenance_cut',
+        'reset_cut',
         'offset_ion_cut',
         'chi2_heat_cut',
         'chi2_ion_cut',
@@ -197,7 +228,6 @@ def quality_cut(df):
     df['quality_cut'] = truth_array
 
     return None
-
 
 
 def crosstalk_correction(df):
@@ -331,7 +361,7 @@ def virtual_channels(df):
         df['energy_ionA'] + df['energy_ionC']
     ) / 2
     
-    # XXX hard coded polarization
+    #hard coded polarization
     df['energy_ion_conservation'] = (
         - df['energy_ionA'] - df['energy_ionB']
         + df['energy_ionC'] + df['energy_ionD']
@@ -362,7 +392,7 @@ def nodecor_virtual_channels(df):
         df['energy_nodecor_ionA'] + df['energy_nodecor_ionC']
     ) / 2
     
-    # XXX hard coded polarization
+    #hard coded polarization
     df['energy_nodecor_ion_conservation'] = (
         - df['energy_nodecor_ionA'] - df['energy_nodecor_ionB']
         + df['energy_nodecor_ionC'] + df['energy_nodecor_ionD']
@@ -426,22 +456,26 @@ def physical_quantities(df, voltage=2):
     return None
 
 
-def guard_threshold_for_bulk_cut(energy_ion):
-    # std_noise_blob_fid = 1
-    # std_10kev_fid = 1.5
-    std_noise_blob_fid = 0.29
-    std_10kev_fid = 0.5
-    alpha_fid = (std_10kev_fid**2 - std_noise_blob_fid**2)**0.5 / 10.37    
-    return (std_noise_blob_fid**2 + (alpha_fid*energy_ion)**2)**0.5
+# def guard_threshold_for_bulk_cut(energy_ion):
+#     # std_noise_blob_fid = 1
+#     # std_10kev_fid = 1.5
+#     std_noise_blob_fid = 0.29
+#     std_10kev_fid = 0.5
+#     alpha_fid = (std_10kev_fid**2 - std_noise_blob_fid**2)**0.5 / 10.37    
+#     return (std_noise_blob_fid**2 + (alpha_fid*energy_ion)**2)**0.5
 
 
-def bulk_threshold_for_guard_cut(energy_ion):
-    # std_noise_blob_fid = 1
-    # std_10kev_fid = 1.5
-    std_noise_blob_fid = 0.29
-    std_10kev_fid = 0.5
-    alpha_fid = (std_10kev_fid**2 - std_noise_blob_fid**2)**0.5 / 10.37    
-    return (std_noise_blob_fid**2 + (alpha_fid*energy_ion)**2)**0.5
+# def bulk_threshold_for_guard_cut(energy_ion):
+#     # std_noise_blob_fid = 1
+#     # std_10kev_fid = 1.5
+#     std_noise_blob_fid = 0.29
+#     std_10kev_fid = 0.5
+#     alpha_fid = (std_10kev_fid**2 - std_noise_blob_fid**2)**0.5 / 10.37    
+#     return (std_noise_blob_fid**2 + (alpha_fid*energy_ion)**2)**0.5
+
+def ionization_baseline_resolution():
+    std_noise_blob = 0.29
+    return std_noise_blob
 
 
 def fid_cuts(df):
@@ -449,15 +483,12 @@ def fid_cuts(df):
     Apply the so-called FID cuts, which is a way to discriminate events
     happening in the bulk (or in the guard) region from the others.
     Create new columns with the truth array for the bulk and guard events.
-    """    
-    energy_ion_collect = df['energy_ion_bulk']
-    energy_ion_guard = df['energy_ion_guard']
-    
+    """
     nsigma = 2
     
-    collect_energy_threshold = guard_threshold_for_bulk_cut(energy_ion_collect) * nsigma
+    collect_energy_threshold = ionization_baseline_resolution() * nsigma
 
-    guard_energy_threshold = bulk_threshold_for_guard_cut(energy_ion_guard) * nsigma
+    guard_energy_threshold = ionization_baseline_resolution() * nsigma
     
     df['bulk_cut'] = (
         ( abs(df['energy_ionA']) < collect_energy_threshold )
@@ -473,6 +504,10 @@ def fid_cuts(df):
 
 
 def charge_conservation_threshold(energy_heat):
+    """
+    Depends on the heat energy to take into consideration the possibility of
+    charge trapping/detrapping.
+    """
     nsigma = 2
     return (0.4120323 + 0.00165406 * energy_heat) * nsigma
 
@@ -517,22 +552,6 @@ def charge_conservation_cut(df):
 #     return None
 
 
-def energy_cut(df, energy_bounds=[0.025, 50]):
-    """
-    Extra cut to select a specific range in energy.
-    Quite handy to drop event with negative energy (not physical) and event 
-    with a high energy (non-linearity becomes problematic).
-    """
-    inf, sup = energy_bounds
-    
-    df['energy_cut'] = (
-        ( df['energy_heat'] > inf )
-        & ( df['energy_heat'] < sup )
-    )
-    
-    return None
-
-
 def trigger_cut(
         df,
         nearest_data_trigger_allowed=5,
@@ -565,7 +584,8 @@ def band_cut(df):
     energy_ion = df['energy_ion_bulk']
     nsigma = 2
     ei_err = nsigma * std_energy_ion(energy_heat)
-
+    ei_err_baseline = nsigma * std_energy_ion(std_energy_ion(energy_heat.shape))
+    
     gamma_cut = ( abs(energy_ion - energy_heat) < ei_err )
 
     er_array = np.linspace(0, energy_heat.max(), int(1e4))
@@ -576,7 +596,7 @@ def band_cut(df):
     
     neutron_cut = ( abs(energy_ion - energy_ion_lindhard) < ei_err )
 
-    HO_cut = ( abs(energy_ion) < ei_err )
+    HO_cut = ( abs(energy_ion) < ei_err_baseline )
 
     df['gamma_cut'] = gamma_cut
     df['neutron_cut'] = neutron_cut
@@ -584,6 +604,68 @@ def band_cut(df):
 
     return None
 
+
+def energy_cut(df, energy_bounds=[0.025, 50]):
+    """
+    Extra cut to select a specific range in energy.
+    Quite handy to drop event with negative energy (not physical) and event 
+    with a high energy (non-linearity becomes problematic).
+    """
+    inf, sup = energy_bounds
+    
+    df['energy_cut'] = (
+        ( df['energy_heat'] > inf )
+        & ( df['energy_heat'] < sup )
+    )
+    
+    # add a condition on the ionization energy
+    
+    return None
+
+
+def analysis_pipeline_common(stream, df_analysis):
+    """
+    Common to all types of events: data, noise, simulation
+    """
+    # valid running time of the detector
+    glitch_time_cut(stream, df_analysis)
+    
+    # quality cuts
+    maintenance_cut(df_analysis)
+    reset_cut(df_analysis)
+    heat_chi2_cut(stream, df_analysis)
+    ion_chi2_cut(stream, df_analysis)
+    offset_ion_cut(df_analysis)
+    quality_cut(df_analysis)
+
+    crosstalk_correction(df_analysis)
+    calibration_heat(stream, df_analysis)
+    calibration_ion(stream, df_analysis)
+
+    virtual_channels(df_analysis)
+    physical_quantities(df_analysis)
+    
+    #nodecor
+    nodecor_crosstalk_correction(df_analysis)
+    nodecor_calibration_ion(stream, df_analysis)
+    nodecor_virtual_channels(df_analysis)
+    charge_conservation_cut(df_analysis)
+    
+    fid_cuts(df_analysis)
+
+    band_cut(df_analysis)
+    energy_cut(df_analysis)
+    
+    return None
+
+
+def analysis_pipeline_simulation(stream, df_analysis):
+    """
+    Specific to simulated events.
+    """
+    trigger_cut(df_analysis)
+    
+    return None
 
 def analysis_data(stream, df_fine):
     """
@@ -594,30 +676,7 @@ def analysis_data(stream, df_fine):
     for col in df_fine.columns:
         df_analysis[col] = df_fine[col]
     
-    glitch_time_cut(stream, df_analysis)
-    heat_chi2_cut(stream, df_analysis)
-    ion_chi2_cut(stream, df_analysis)
-    offset_ion_cut(df_analysis)
-    quality_cut(df_analysis)
-    
-    crosstalk_correction(df_analysis)
-    calibration_heat(stream, df_analysis)
-    calibration_ion(stream, df_analysis)
-    
-    virtual_channels(df_analysis)
-    fid_cuts(df_analysis)
-    energy_cut(df_analysis)
-    
-    physical_quantities(df_analysis)
-    band_cut(df_analysis)
-
-    #nodecor
-    nodecor_crosstalk_correction(df_analysis)
-    nodecor_calibration_ion(stream, df_analysis)
-    
-    nodecor_virtual_channels(df_analysis)
-    charge_conservation_cut(df_analysis)
-    # nodecor_fid_cuts(df_analysis)    
+    analysis_pipeline_common(stream, df_analysis)
 
     return df_analysis
 
@@ -631,22 +690,7 @@ def analysis_noise(stream, df_fine):
     for col in df_fine.columns:
         df_analysis[col] = df_fine[col]
     
-    glitch_time_cut(stream, df_analysis)
-    heat_chi2_cut(stream, df_analysis)
-    ion_chi2_cut(stream, df_analysis)
-    offset_ion_cut(df_analysis)
-    quality_cut(df_analysis)
-    
-    crosstalk_correction(df_analysis)
-    calibration_heat(stream, df_analysis)
-    calibration_ion(stream, df_analysis)
-    
-    virtual_channels(df_analysis)
-    fid_cuts(df_analysis)
-    energy_cut(df_analysis)
-    
-    physical_quantities(df_analysis)
-    band_cut(df_analysis)  
+    analysis_pipeline_common(stream, df_analysis) 
 
     return df_analysis
 
@@ -660,35 +704,8 @@ def analysis_simulation(stream, df_fine):
     for col in df_fine.columns:
         df_analysis[col] = df_fine[col]
         
-    glitch_time_cut(stream, df_analysis)
-    heat_chi2_cut(stream, df_analysis)
-    ion_chi2_cut(stream, df_analysis)
-    offset_ion_cut(df_analysis)
-    quality_cut(df_analysis)
-    
-    crosstalk_correction(df_analysis)
-    calibration_heat(stream, df_analysis)
-    calibration_ion(stream, df_analysis)
-
-    virtual_channels(df_analysis)
-    fid_cuts(df_analysis)
-    
-    # simulation specific
-    trigger_cut(df_analysis)
-    
-    energy_cut(df_analysis)
-    band_cut(df_analysis)
-    
-    physical_quantities(df_analysis)
-
-    #nodecor
-    nodecor_crosstalk_correction(df_analysis)
-    nodecor_calibration_ion(stream, df_analysis)
-    
-    nodecor_virtual_channels(df_analysis)
-    charge_conservation_cut(df_analysis)
-    # nodecor_fid_cuts(df_analysis)    
-
+    analysis_pipeline_common(stream, df_analysis)
+    analysis_pipeline_simulation(stream, df_analysis)
     
     return df_analysis
 

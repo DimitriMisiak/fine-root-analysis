@@ -135,6 +135,7 @@ def data_root_to_df(root):
     df['time_window'] = run_tree['TimeWindow_Heat'].array()[0]
     df['maintenance_cycle'] = run_tree['MaintenanceCycle'].array()[0]
     df['maintenance_duration'] = run_tree['MaintenanceDuration'].array()[0]
+    df['reset_period'] = run_tree['Rt'].array()[0]
     
     polarization = run_tree['Polar_Ion'].array()[0]
     for polar, label in zip(polarization, ['A', 'B', 'C', 'D']):
@@ -167,6 +168,7 @@ def noise_root_to_df(root):
     df['time_window'] = run_tree['TimeWindow_Heat'].array()[0]
     df['maintenance_cycle'] = run_tree['MaintenanceCycle'].array()[0]
     df['maintenance_duration'] = run_tree['MaintenanceDuration'].array()[0]
+    df['reset_period'] = run_tree['Rt'].array()[0]
     
     polarization = run_tree['Polar_Ion'].array()[0]
     for polar, label in zip(polarization, ['A', 'B', 'C', 'D']):
