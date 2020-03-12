@@ -13,8 +13,8 @@ import numpy as np
 from plot_addon import lighten_color, LegendTitle
 
 analysis_dir = '/home/misiak/Analysis/neutron_background'
-analysis_simu_path = '/'.join([analysis_dir, 'simu_analysis.h5'])
-analysis_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])
+analysis_simu_path = '/'.join([analysis_dir, 'simu_science.h5'])
+analysis_data_path = '/'.join([analysis_dir, 'data_science.h5'])
 
 df_simu = pd.read_hdf(
     analysis_simu_path,
@@ -943,11 +943,11 @@ fig.subplots_adjust(hspace=0, wspace=0)
 # =============================================================================
 # ### NORMALIZATION, COUTNS TO DRU
 # =============================================================================
-
+#%%
 mass_ge = 0.038 #kg
 
-from data_analysis import analysis_parameters
-from root_to_hdf5 import stream_configuration
+from pipeline_data_quality import quality_parameters
+from pipeline_data_raw import stream_configuration
 
 exposure_dict = dict()
 for source in source_list:
@@ -957,7 +957,7 @@ for source in source_list:
         
         raw_length = df_data[df_data.stream == stream].timestamp.max()
         
-        glitch_time = analysis_parameters[stream]['glitch_time_cut']
+        glitch_time = quality_parameters[stream]['glitch_time_cut']
         malus = 0
         for window in glitch_time:
             inf, sup = window
@@ -1154,5 +1154,3 @@ ax.plot(
         alpha=0.3,
         color='k'
 )
-    
-

@@ -17,7 +17,7 @@ cartoon = [
         pe.Normal(),
 ]
 
-from data_analysis import (
+from pipeline_data_science import (
     ion_chi2_threshold_function,
     heat_chi2_threshold_function,
     analysis_parameters,
@@ -37,7 +37,7 @@ plt.close('all')
 plt.rcParams['text.usetex']=True
 
 analysis_dir = '/home/misiak/Analysis/neutron_background'
-analysis_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])
+analysis_data_path = '/'.join([analysis_dir, 'data_science.h5'])
 
 df_analysis = pd.read_hdf(
     analysis_data_path,

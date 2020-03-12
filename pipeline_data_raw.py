@@ -326,15 +326,15 @@ if __name__ == "__main__":
     
     # DATA root files
     data_root_directory = '/home/misiak/Data/data_run57_neutron/Data'
-    data_output_path = '/'.join([output_directory, 'data.h5'])
+    data_output_path = '/'.join([output_directory, 'data_raw.h5'])
     # data_root_to_hdf5(data_root_directory, data_output_path)
 
     # NOISE root files
-    noise_output_path = '/'.join([output_directory, 'noise.h5'])
+    noise_output_path = '/'.join([output_directory, 'noise_raw.h5'])
     noise_root_to_hdf5(data_root_directory, noise_output_path)
     
     # SIMULATION root files
     simulation_root_directory = '/home/misiak/Data/data_run57_neutron/SimuCoinc'
-    simulation_output_path = '/'.join([output_directory, 'simu.h5'])
+    simulation_output_path = '/'.join([output_directory, 'simu_raw.h5'])
     # simu_root_to_hdf5(simulation_root_directory, simulation_output_path)
     

@@ -199,8 +199,8 @@ if __name__ == "__main__":
 
     analysis_dir = '/home/misiak/Analysis/neutron_background'
         
-    raw_data_path =  '/'.join([analysis_dir, 'data.h5'])
-    output_data_path = '/'.join([analysis_dir, 'data_fine.h5'])
+    raw_data_path =  '/'.join([analysis_dir, 'data_raw.h5'])
+    output_data_path = '/'.join([analysis_dir, 'data_reconstructed.h5'])
 
     # processing the experimental data
     hdf5_processing(
@@ -209,8 +209,8 @@ if __name__ == "__main__":
         extract_useful_columns_for_data
     )
 
-    raw_noise_path =  '/'.join([analysis_dir, 'noise.h5'])
-    output_noise_path = '/'.join([analysis_dir, 'noise_fine.h5'])
+    raw_noise_path =  '/'.join([analysis_dir, 'noise_raw.h5'])
+    output_noise_path = '/'.join([analysis_dir, 'noise_reconstructed.h5'])
 
     # processing the experimental data
     hdf5_processing(
@@ -219,8 +219,8 @@ if __name__ == "__main__":
         extract_useful_columns_for_noise
     )
 
-    raw_simu_path =  '/'.join([analysis_dir, 'simu.h5'])
-    output_simu_path = '/'.join([analysis_dir, 'simu_fine.h5'])
+    raw_simu_path =  '/'.join([analysis_dir, 'simu_raw.h5'])
+    output_simu_path = '/'.join([analysis_dir, 'simu_reconstructed.h5'])
   
     # # processinf the pulse simulation
     hdf5_processing(

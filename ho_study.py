@@ -14,8 +14,8 @@ import numpy as np
 from plot_addon import lighten_color, LegendTitle
 
 analysis_dir = '/home/misiak/Analysis/neutron_background'
-analysis_simu_path = '/'.join([analysis_dir, 'simu_analysis.h5'])
-analysis_data_path = '/'.join([analysis_dir, 'data_analysis.h5'])
+analysis_simu_path = '/'.join([analysis_dir, 'simu_science.h5'])
+analysis_data_path = '/'.join([analysis_dir, 'data_science.h5'])
 
 # source_list = ['Background', 'Calibration']
 

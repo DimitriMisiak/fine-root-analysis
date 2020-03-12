@@ -9,6 +9,7 @@ Some functions and classes for graphic representation.
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 from stats_addon import cdf_calc
 
@@ -275,3 +276,10 @@ def basic_corner(samples, labels, axes=None, num='Basic corner plot', **kwargs):
     fig.subplots_adjust(hspace=.0, wspace=.0)
     
     return fig, axes
+
+
+def save_figure_dict(fig_dict, output_dir, extension='png'):
+    os.makedirs(output_dir, exist_ok=True)
+    for key, fig in fig_dict.items():
+        fig.savefig( output_dir + '/{}.{}'.format(key, extension) )
+        
