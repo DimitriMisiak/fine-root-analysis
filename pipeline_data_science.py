@@ -210,6 +210,7 @@ if __name__ == "__main__":
     ### SIMULATION
     fine_simu_path = '/'.join([analysis_dir, 'simu_calibrated.h5'])
     output_simu_path = '/'.join([analysis_dir, 'simu_science.h5'])
+    
     hdf5_science(
         fine_simu_path,
         output_simu_path,

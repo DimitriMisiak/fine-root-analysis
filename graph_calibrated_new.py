@@ -633,48 +633,15 @@ if __name__ == '__main__':
         '{0} {1} {2}'
     ).format(stream, h5type, source).replace('_', ' ') 
     
-    # fig_dict = calibration_plots(stream, title, df_analysis)
-    fig_hist_trig = histogram_adu(title, df_analysis, bins=10000)
-    
     
     quality_cut = df_analysis['quality_cut']
     A = df_analysis[quality_cut]['energy_adu_heat']
     B = (1000 < A) & (A < 1400)
     
-    inf, sup = np.quantile(A[B], [0.16, 0.84])
+    inf, med, sup = np.quantile(A[B], [0.16, 0.5, 0.84])
     
     C = (inf < A) & (A < sup)
 
-    # D = df_analysis[quality_cut & C]
-    D = df_analysis[quality_cut]
-    
-    D_a = D['energy_adu_ionA']
-    D_b = D['energy_adu_ionB']
-    D_c = D['energy_adu_ionC']
-    D_d = D['energy_adu_ionD']
-    
-    top = (D_a - D_b) / (D_c + D_d)
-    bot = (D_c - D_d) / (D_a + D_b)
-    
-    plt.figure()
-    
-    plt.plot(
-        bot,
-        top,
-        ls='none',
-        marker='.'
-    )
-
-    plt.grid()
-    plt.axvline(-1, color='k')
-    plt.axvline(+1, color='k')
-    plt.axhline(-1, color='k')
-    plt.axhline(+1, color='k')
-    
-    
-    
-    
-    
     
     plt.figure()
     
@@ -685,101 +652,152 @@ if __name__ == '__main__':
         marker='.'
     )
     
+    fig, ax = plt.subplots()
     
-    # fig, ax = plt.subplots()
-    # bin_edges = np.linspace(1000, 1400, int(1e2))
-    # ax0 = ax_hist(ax, bin_edges, A[B], 'quality')[0]
-    # ax.axvline(inf, color='k')
-    # ax.axvline(sup, color='k')
-  
+    bin_edges = np.linspace(1000, 1400, int(1e2))
+    ax0 = ax_hist(ax, bin_edges, A[B], 'quality')[0]
+    ax.axvline(inf, color='k')
+    ax.axvline(sup, color='k')
+    ax.axvline(med, color='k', lw=3)
     
-    # fig, axes = plt.subplots(ncols=2)
+    print('Heat ', inf, med, sup)
     
-    # D = df_analysis[quality_cut & C]
+    ### IONIZATION CALIBRATION
+    num = '{} : Ionization Calibration'.format(title)
+    fig, axes = plt.subplots(ncols=2, num=num, figsize=(10,7))
     
-    # line, = axes[0].plot(
-    #     D['energy_adu_ionB'],
-    #     D['energy_adu_ionA'],
-    #     ls='none',
-    #     marker='.'
-    # )
+    D = df_analysis[quality_cut & C]
     
-    # axes[0].set_xlabel('Amplitude B')
-    # axes[0].set_ylabel('Amplitude A')
+    xB = D['energy_adu_corr_ionB']
+    yA = D['energy_adu_corr_ionA']
+    line, = axes[0].plot(
+        xB,
+        yA,
+        ls='none',
+        marker='.',
+        label='Quality 10keV events (1$\sigma$)',
+    )
+    
+    axes[0].set_xlabel('Amplitude B')
+    axes[0].set_ylabel('Amplitude A')
+    axes[0].grid()
 
-    # from graphic_selection import Data_Selector
-    
-    # linear = lambda x,*p: p[0]*x + p[1]
-    # from scipy.optimize import curve_fit
-    
-    
-    # def funAB(indexes):
-    #     x_data = D['energy_adu_ionB'].array[indexes]
-    #     y_data = D['energy_adu_ionA'].array[indexes]
 
-    #     popt, pcov = curve_fit(
-    #         linear,
-    #         x_data,
-    #         y_data,
-    #         p0=[1,1]
-    #     )
-
-    #     ion_array = np.linspace(
-    #         x_data.min(),
-    #         x_data.max(),
-    #         int(1e3)
-    #     )       
-        
-    #     axes[0].plot(
-    #         ion_array,
-    #         linear(ion_array, *popt),
-    #         color='k'
-    #     )
-        
-    #     # axes[0].legend(title=popt)
-    #     print(popt)
-    #     return popt
-        
+    from graphic_selection import Data_Selector
     
+    linear = lambda x,*p: p[0]*x + p[1]
+    from scipy.optimize import curve_fit
+    
+    
+    def funAB(indexes):
+        x_data = D['energy_adu_ionB'].array[indexes]
+        y_data = D['energy_adu_ionA'].array[indexes]
+
+        popt, pcov = curve_fit(
+            linear,
+            x_data,
+            y_data,
+            p0=[1,1]
+        )
+
+        ion_array = np.linspace(
+            x_data.min(),
+            x_data.max(),
+            int(1e3)
+        )       
+        
+        axes[0].plot(
+            ion_array,
+            linear(ion_array, *popt),
+            color='k'
+        )
+        
+        # axes[0].legend(title=popt)
+        print(popt)
+        return popt
+        
     # ds = Data_Selector(axes[0], line, funAB)
 
-    # # 
-    
-    
-    
+    from scipy.odr import ODR, Model, Data, RealData
 
-    
+    # def func(beta, x):
+    #     y = beta[0]+beta[1]*x
+    #     return y
 
-    
-    # axes[0].plot(
-    #     ion_array,
-    #     linear(ion_array, *popt)
-    # )
+    def func(beta, x):
+        y = (-beta[1]/beta[0])*x+beta[1]
+        return y
 
-    # axes[1].plot(
-    #     D['energy_adu_ionD'],
-    #     D['energy_adu_ionC'],
-    #     ls='none',
-    #     marker='.'
-    # )
 
-    # axes[1].set_xlabel('Amplitude D')
-    # axes[1].set_ylabel('Amplitude C')
+    ### Calibration A & B
+    data = RealData(xB, yA, 5, 5)
+    model = Model(func)
    
+    odr = ODR(data, model, [1,1])
     
+    odr.set_job(fit_type=0)
+    output = odr.run()
     
-    # fig, ax = plt.subplots()
+    xn = np.linspace(
+        xB.min(),
+        xB.max(),
+        int(1e3)
+    )       
+    yn = func(output.beta, xn)
     
-    # bin_edges = np.linspace(1000, 1400, int(1e2))
+    axes[0].plot(xn,yn,'r-',label='Model fitting')
+
+
+    ### Calibration C & D
+
+    xD = D['energy_adu_corr_ionD']
+    yC = D['energy_adu_corr_ionC']
+
+    axes[1].plot(
+        xD,
+        yC,
+        ls='none',
+        marker='.',
+        label='Quality 10keV events (1$\sigma$)'
+    )
+
+    axes[1].set_xlabel('Amplitude D')
+    axes[1].set_ylabel('Amplitude C')
+    axes[1].grid()
+
+    data = RealData(xD, yC, 5, 5)
+    model = Model(func)
+   
+    odr = ODR(data, model, [1,1])
     
-    # ax0 = ax_hist(ax, bin_edges, A[B], 'quality')[0]
+    odr.set_job(fit_type=0)
+    output = odr.run()
     
-    # import scipy.stats as st
-    # popt = st.norm.fit(A[B])
+    peakB, peakA = output.beta
+    sigmaB = output.cov_beta[0,0]**0.5
+    sigmaA = output.cov_beta[1,1]**0.5
     
-    # pdf = st.norm(*popt).pdf(bin_edges)
-    # cdf = st.norm(*popt).cdf(bin_edges)
+    xn = np.array([0, peakB])
+       
+    # yn = func(output.beta, xn)
+    yn = np.array([peakA, 0])
     
-    # # ax.plot(bin_edges, pdf, color='k')
-    # ax0.plot(bin_edges, cdf, color='k')
+    axes[1].errorbar(
+        xn,
+        yn,
+        yerr=sigmaA,
+        xerr=sigmaB,
+        marker='o',
+        color='r',
+        label='Model fitting'
+    )
     
+    for ax in axes:
+        ax.legend()
+    
+    fig.text(0.5, 0.98, num,
+         horizontalalignment='center',
+         verticalalignment='center',
+         bbox=dict(facecolor='lime', alpha=0.5))
+        
+    fig.tight_layout(rect=(0,0, 1, 0.98))
