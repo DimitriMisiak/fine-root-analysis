@@ -44,12 +44,12 @@ class double_norm(st.rv_continuous):
 class fid_mixture(st.rv_continuous):
     """ Double Gaussian distribution plus uniform distribution """
 
-    def _cdf(self, x, f, loc1, scale1, loc2, scale2, fu, loc3, scale3):
-        cdf1 = (1-fu) * (1-f) * st.norm.cdf(x, loc=loc1, scale=scale1)
-        cdf2 = (1-fu) * f * st.norm.cdf(x, loc=loc2, scale=scale2)
-        cdf3 = fu * st.uniform.cdf(x, loc=loc3, scale=scale3)
-        cdf = cdf1 + cdf2 + cdf3
-        return cdf
+    # def _cdf(self, x, f, loc1, scale1, loc2, scale2, fu, loc3, scale3):
+    #     cdf1 = (1-fu) * (1-f) * st.norm.cdf(x, loc=loc1, scale=scale1)
+    #     cdf2 = (1-fu) * f * st.norm.cdf(x, loc=loc2, scale=scale2)
+    #     cdf3 = fu * st.uniform.cdf(x, loc=loc3, scale=scale3)
+    #     cdf = cdf1 + cdf2 + cdf3
+    #     return cdf
 
     def _pdf(self, x, f, loc1, scale1, loc2, scale2, fu, loc3, scale3):
         pdf1 = (1-fu) * (1-f)* st.norm.pdf(x, loc=loc1, scale=scale1)
