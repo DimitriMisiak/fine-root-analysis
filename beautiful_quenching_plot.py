@@ -17,19 +17,17 @@ cartoon = [
         pe.Normal(),
 ]
 
-from pipeline_data_science import (
-    ion_chi2_threshold_function,
-    heat_chi2_threshold_function,
-    analysis_parameters,
-    guard_threshold_for_bulk_cut,
-    bulk_threshold_for_guard_cut,
-    energy_heat_from_er_and_quenching,
-    energy_ion_from_er_and_quenching,
-    std_energy_ion,
+from pipeline_data_calibrated import (
     quenching,
     energy_recoil,
     lindhard,
+    energy_heat_from_er_and_quenching,
+    energy_ion_from_er_and_quenching,
+)
+
+from pipeline_data_science import (
     charge_conservation_threshold,
+    std_energy_ion,  
 )
 
 

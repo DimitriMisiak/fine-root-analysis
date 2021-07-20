@@ -87,7 +87,7 @@ def ax_hist(axis, bin_edges, data_array, lab, color='slateblue'):
     
     data_sorted, cdf_array = cdf_calc(data_array)
     
-    hist_line, = axis.plot(bin_array, data_hist, ls='steps-mid',
+    hist_line, = axis.plot(bin_array, data_hist, drawstyle='steps-mid',
                            color=c_dark)
 
     axis.fill_between(bin_array, data_hist, label=lab,
@@ -98,7 +98,7 @@ def ax_hist(axis, bin_edges, data_array, lab, color='slateblue'):
     a0.tick_params(axis='y', labelcolor='grey')
     
     cdf_line, = a0.plot(data_sorted, cdf_array,
-                        ls='steps', color=color, path_effects=style)
+                        drawstyle='steps', color=color, path_effects=style)
     
     axis.grid(True)
     axis.set_ylabel('Counts Events {}'.format(lab), color='k')
